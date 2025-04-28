@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulateur de Bilan Énergétique - Covoiturage Suisse</title>
+    <link rel="stylesheet" href="./styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Simulateur de Bilan Énergétique - Covoiturage</h1>
+            <p>Analysez la consommation et les émissions de votre parc automobile de covoiturage en Suisse.</p>
+        </header>
+        <section id="config" class="card">
+            <h2>Configuration du Parc</h2>
+            <div class="input-group">
+                <label for="totalCars">Nombre total de voitures <span class="tooltip">ℹ️ Nombre de véhicules dans le parc</span></label>
+                <input type="number" id="totalCars" value="100" min="1">
+            </div>
+            <h3>Répartition des types de véhicules (%)</h3>
+            <div class="input-group">
+                <label for="pctElectric">Électrique (4 places) <span class="tooltip">ℹ️ Voitures électriques compactes</span></label>
+                <input type="number" id="pctElectric" value="20.9" min="0" max="100" step="0.1">
+            </div>
+            <div class="input-group">
+                <label for="pctHybridPlug">Hybride rechargeable (4 places) <span class="tooltip">ℹ️ Voitures hybrides rechargeables</span></label>
+                <input type="number" id="pctHybridPlug" value="9.2" min="0" max="100" step="0.1">
+            </div>
+            <div class="input-group">
+                <label for="pctDiesel">Diesel (5 places) <span class="tooltip">ℹ️ SUV diesel</span></label>
+                <input type="number" id="pctDiesel" value="14.1" min="0" max="100" step="0.1">
+            </div>
+            <div class="input-group">
+                <label for="pctPetrol">Essence (2 places) <span class="tooltip">ℹ️ Voitures compactes à essence</span></label>
+                <input type="number" id="pctPetrol" value="55.8" min="0" max="100" step="0.1">
+            </div>
+            <div class="input-group">
+                <label for="pctGas">Gaz naturel (5 places) <span class="tooltip">ℹ️ Voitures au gaz naturel</span></label>
+                <input type="number" id="pctGas" value="0" min="0" max="100" step="0.1">
+            </div>
+            <div class="input-group">
+                <label for="pctHydrogen">Hydrogène (4 places) <span class="tooltip">ℹ️ Voitures à hydrogène</span></label>
+                <input type="number" id="pctHydrogen" value="0" min="0" max="100" step="0.1">
+            </div>
+            <p id="pctError" class="error" style="display: none;">La somme des pourcentages doit être égale à 100%.</p>
+            <div class="input-group">
+                <label for="aiRequests">Requêtes IA par utilisateur/jour <span class="tooltip">ℹ️ Nombre moyen de requêtes à l’application IA</span></label>
+                <input type="number" id="aiRequests" value="10" min="0">
+            </div>
+            <div class="button-group">
+                <button onclick="calculate()">Calculer</button>
+                <button onclick="reset()">Réinitialiser</button>
+            </div>
+        </section>
+        <section id="results" class="card">
+            <h2>Résultats</h2>
+            <div class="table-wrapper">
+                <table id="resultsTable">
+                    <thead>
+                        <tr>
+                            <th>Type</th><th>Nombre</th><th>Places</th><th>Consommation (kWh/km)</th><th>CO2 (g/km)</th><th>NOx (g/km)</th><th>SO2 (g/km)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody"></tbody>
+                </table>
+            </div>
+            <h3>Récapitulatif</h3>
+            <div class="summary">
+                <p>Nombre total de places: <span id="totalSeats"></span></p>
+                <p>Nombre d'utilisateurs potentiels: <span id="totalUsers"></span></p>
+                <p>Consommation énergétique totale par km: <span id="totalEnergy"></span> kWh/km</p>
+                <p>Émissions totales CO2: <span id="totalCO2"></span> g/km</p>
+                <p>Émissions totales NOx: <span id="totalNOx"></span> g/km</p>
+                <p>Émissions totales SO2: <span id="totalSO2"></span> g/km</p>
+                <p>Consommation IA par utilisateur: <span id="aiEnergy"></span> kWh/jour</p>
+                <p>Émissions IA CO2: <span id="aiCO2"></span> g/jour</p>
+            </div>
+            <canvas id="vehicleChart"></canvas>
+            <canvas id="consumptionChart"></canvas>
+            <canvas id="emissionsChart"></canvas>
+        </section>
+        <section id="userConsumption" class="card">
+            <h2>Consommation par Utilisateur selon la Charge</h2>
+            <div class="table-wrapper">
+                <table id="userConsumptionTable">
+                    <thead>
+                        <tr>
+                            <th>Charge (%)</th><th>Utilisateurs</th><th>Consommation (kWh/km/utilisateur)</th><th>CO2 (g/km/utilisateur)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userConsumptionBody"></tbody>
+                </table>
+            </div>
+            <canvas id="userConsumptionChart"></canvas>
+        </section>
+        <section id="about" class="card">
+            <h3>À propos</h3>
+            <p>Ce simulateur utilise des données basées sur SuisseEnergie et le BFE. Hypothèses : mix énergétique suisse (10 g CO2/kWh), PUE datacenter = 1,5, consommation IA = 0,02 kWh/requête.</p>
+        </section>
+    </div>
+    <script src="./script.js"></script>
+</body>
+</html>
