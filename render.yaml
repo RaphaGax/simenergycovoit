@@ -1,0 +1,25 @@
+# Render Blueprint : site de TEST EcoVroom (https://render.com/docs/blueprint-spec).
+# N'affecte pas GitHub Pages ni la branche main.
+#
+# Offre gratuite : le service s'endort sans visite et la base SQLite (data/ecovroom.db)
+# est effacée à chaque redémarrage ou nouveau déploiement. Pour garder les données,
+# passer à une offre payante avec un disque persistant et y placer DATABASE_PATH.
+services:
+  - type: web
+    name: ecovroom
+    runtime: node
+    plan: free
+    branch: claude/core-fleet-extraction
+    autoDeploy: true # chaque push sur la branche redéploie le site de test
+    buildCommand: echo "Aucune dépendance à installer"
+    startCommand: npm start
+    healthCheckPath: /api/config
+    envVars:
+      - key: NODE_VERSION
+        value: 22.13.0
+      # Render sert le site en HTTPS : cookie de session réservé à HTTPS.
+      - key: COOKIE_SECURE
+        value: "1"
+      # Clé openrouteservice, demandée par Render à la création (facultative).
+      - key: ORS_API_KEY
+        sync: false

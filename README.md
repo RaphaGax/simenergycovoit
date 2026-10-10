@@ -32,6 +32,12 @@ Exemple : `ORS_API_KEY=… npm start`.
 - `server/` : serveur HTTP, base SQLite, authentification.
 - `src/fleet/`, `fleet.html` : simulateur de parc automobile (conservé, hors parcours utilisateurs).
 
+## Site de test sur Render
+
+`render.yaml` décrit un service web gratuit qui déploie la branche `claude/core-fleet-extraction`
+(Render → « New + » → « Blueprint » → choisir ce dépôt). Il n'a aucun effet sur GitHub Pages.
+Offre gratuite : la base est effacée à chaque redémarrage, à réserver aux tests.
+
 ## En production
 
 - Servir derrière HTTPS (proxy inverse) avec `COOKIE_SECURE=1`.
