@@ -207,6 +207,13 @@ header h1 small {
     gap: 0 16px;
 }
 
+/* Champs alignés même quand un libellé passe sur deux lignes */
+.grid .input-group {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
 fieldset {
     border: 1px solid #e5e7eb;
     border-radius: 8px;
@@ -370,7 +377,6 @@ button.small {
         margin-bottom: 10px;
     }
     input[type="number"], input[type="text"], button {
-        font-size: 0.9em;
         padding: 8px;
     }
     .button-group {
@@ -380,7 +386,10 @@ button.small {
         width: 100%;
     }
     .summary {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .summary p {
+        font-size: 0.85em;
     }
     table {
         font-size: 0.85em;
@@ -398,5 +407,14 @@ button.small {
     .scenario-list .actions button {
         flex: 1;
         width: auto;
+    }
+}
+
+/* Écrans tactiles (téléphones, tablettes) : 16 px minimum, sinon Safari iOS zoome au focus ;
+   44 px de haut, taille de cible tactile recommandée. */
+@media (max-width: 1024px), (pointer: coarse) {
+    input[type="number"], input[type="text"], button {
+        font-size: 16px;
+        min-height: 44px;
     }
 }

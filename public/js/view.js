@@ -20,7 +20,7 @@ export function buildMixInputs(doc) {
         label.htmlFor = id;
         label.textContent = `${VEHICLES[type].label} (${VEHICLES[type].seats} places)`;
         const input = doc.createElement('input');
-        Object.assign(input, { type: 'number', id, name: id, min: '0', max: '100', step: '0.1' });
+        Object.assign(input, { type: 'number', id, name: id, min: '0', max: '100', step: '0.1', inputMode: 'decimal' });
         input.dataset.vehicle = type;
         group.append(label, input);
         container.append(group);

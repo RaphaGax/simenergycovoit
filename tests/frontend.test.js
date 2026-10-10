@@ -70,6 +70,7 @@ describe('view : formulaire', () => {
         const inputs = doc.querySelectorAll('#mixInputs input');
         assert.equal(inputs.length, VEHICLE_TYPES.length);
         assert.equal(inputs[0].id, 'pctElectric');
+        assert.ok([...inputs].every(input => input.inputMode === 'decimal'), 'clavier décimal sur mobile');
         assert.match(doc.querySelector('label[for="pctElectric"]').textContent, /Électrique \(4 places\)/);
     });
 
