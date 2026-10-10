@@ -121,8 +121,105 @@
 
 .trip-item {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
     padding: 12px;
     border: 1px solid #e5e7eb;
     border-radius: 6px;
+}
+
+#app a:not(.button-link) {
+    color: #1a3c5e;
+    font-weight: 500;
+}
+
+/* Parcours passager */
+.trip-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.trip-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.trip-actions .button-link {
+    margin-top: 0;
+}
+
+.price-badge {
+    padding: 4px 10px;
+    border-radius: 999px;
+    background-color: #dcfce7;
+    color: #15803d;
+    font-weight: 700;
+}
+
+.search-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0 15px;
+    align-items: end;
+}
+
+.search-form .button-group {
+    margin-bottom: 1.2em;
+}
+
+.booking-recap {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 8px 16px;
+    margin: 15px 0;
+}
+
+.booking-recap dt {
+    color: #6b7280;
+}
+
+.price {
+    color: #15803d;
+}
+
+.error-message {
+    color: #dc2626;
+    font-weight: 500;
+    margin: 10px 0;
+}
+
+.error-message:empty {
+    display: none;
+}
+
+.banner {
+    padding: 12px 15px;
+    border-radius: 6px;
+    font-weight: 500;
+    margin-bottom: 15px;
+}
+
+.banner-confirmed {
+    background-color: #dcfce7;
+    color: #15803d;
+}
+
+.banner-cancelled {
+    background-color: #f3f4f6;
+    color: #4b5563;
+}
+
+.button-secondary {
+    background-color: #fff;
+    color: #b91c1c;
+    border: 1px solid #b91c1c;
+}
+
+.button-secondary:hover {
+    background-color: #fef2f2;
 }

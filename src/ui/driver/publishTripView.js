@@ -2,12 +2,13 @@
 import { validateTrip, createTrip, MAX_SEATS, MAX_DISTANCE_KM } from '../../core/trips.js';
 import { co2AvoidedForTrip } from '../../core/co2.js';
 import { VEHICLE_PROFILES, VEHICLE_TYPES } from '../../core/emissionFactors.js';
+import { seatsBooked } from '../../core/booking.js';
 import { el } from '../dom.js';
-import { VEHICLE_LABELS, formatCo2, formatDateTime, formatDistance } from '../format.js';
+import { VEHICLE_LABELS, formatCo2 } from '../format.js';
+import { LOCAL_DRIVER_ID } from '../session.js';
+import { tripSummary } from '../components/tripSummary.js';
 import { createCo2EstimatePanel } from './co2EstimatePanel.js';
 
-// TODO: remplacer par l'identifiant du conducteur connecté quand l'authentification existera.
-const LOCAL_DRIVER_ID = 'conducteur-local';
 const DEFAULT_VEHICLE = 'electric';
 const FIELD_NAMES = ['origin', 'destination', 'departureAt', 'distanceKm', 'vehicleType', 'seats'];
 
@@ -40,21 +41,25 @@ function readDraft(form) {
     };
 }
 
-function renderTripList(container, trips) {
+function renderTripList(container, trips, bookings) {
     container.replaceChildren(el('h2', { text: 'Mes trajets publiés' }));
-    if (trips.length === 0) {
+    const mine = trips
+        .filter(trip => trip.driverId === LOCAL_DRIVER_ID)
+        .sort((a, b) => a.departureAt.localeCompare(b.departureAt));
+    if (mine.length === 0) {
         container.append(el('p', { class: 'placeholder', text: 'Aucun trajet publié pour le moment.' }));
         return;
     }
-    const sorted = [...trips].sort((a, b) => a.departureAt.localeCompare(b.departureAt));
-    container.append(el('ul', { class: 'trip-list' }, ...sorted.map(trip => el('li', { class: 'trip-item' },
-        el('strong', { text: `${trip.origin} → ${trip.destination}` }),
-        el('span', { text: `${formatDateTime(trip.departureAt)} · ${formatDistance(trip.distanceKm)} · ${trip.seats} place${trip.seats > 1 ? 's' : ''} · ${VEHICLE_LABELS[trip.vehicleType]}` }),
-        el('span', { class: 'hint', text: `Jusqu’à ${formatCo2(co2AvoidedForTrip({ ...trip, passengers: trip.seats }))} de CO₂ évité si complet` })
-    ))));
+    container.append(el('ul', { class: 'trip-list' }, ...mine.map(trip => {
+        const booked = seatsBooked(trip.id, bookings);
+        return el('li', { class: 'trip-item' }, tripSummary(trip,
+            el('span', { text: `Places réservées : ${booked}/${trip.seats}` }),
+            el('span', { class: 'hint', text: `CO₂ évité avec les passagers actuels : ${formatCo2(co2AvoidedForTrip({ ...trip, passengers: booked }))}`
+                + ` · jusqu’à ${formatCo2(co2AvoidedForTrip({ ...trip, passengers: trip.seats }))} si complet` })));
+    })));
 }
 
-export function render(root, { tripRepository }) {
+export function render(root, { tripRepository, bookingRepository }) {
     const now = new Date();
     const vehicleSelect = el('select', {}, ...VEHICLE_TYPES.map(type =>
         el('option', { value: type, text: VEHICLE_LABELS[type] })));
@@ -125,7 +130,7 @@ export function render(root, { tripRepository }) {
         seatsInput.value = String(defaultSeatsFor(DEFAULT_VEHICLE));
         seatsEdited = false;
         refreshEstimate();
-        renderTripList(tripList, tripRepository.list());
+        renderTripList(tripList, tripRepository.list(), bookingRepository.list());
     });
 
     root.append(
@@ -136,5 +141,5 @@ export function render(root, { tripRepository }) {
         tripList
     );
     refreshEstimate();
-    renderTripList(tripList, tripRepository.list());
+    renderTripList(tripList, tripRepository.list(), bookingRepository.list());
 }
