@@ -49,3 +49,80 @@
 .placeholder {
     margin: 10px 0;
 }
+
+/* Publication conducteur */
+.publish-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: 20px;
+    align-items: start;
+}
+
+@media (max-width: 700px) {
+    .publish-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.trip-form input,
+.trip-form select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font: inherit;
+    background-color: #fff;
+}
+
+.trip-form [aria-invalid] {
+    border-color: #dc2626;
+}
+
+.field-error {
+    color: #dc2626;
+    font-size: 0.85em;
+    min-height: 1em;
+}
+
+.form-status {
+    margin-top: 10px;
+    font-weight: 500;
+    color: #15803d;
+}
+
+.co2-panel {
+    background-color: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 15px;
+}
+
+.co2-panel p {
+    margin: 6px 0;
+}
+
+.co2-table {
+    margin: 10px 0;
+    font-size: 0.9em;
+}
+
+.hint {
+    color: #6b7280;
+    font-size: 0.85em;
+}
+
+.trip-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.trip-item {
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+}

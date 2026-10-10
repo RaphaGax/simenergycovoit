@@ -13,11 +13,12 @@ export function matchRoute(hash, routes) {
         ?? routes.find(route => route.path === DEFAULT_PATH);
 }
 
-export function startRouter({ root, routes, onNavigate = () => {} }) {
+// context (services partagés) est transmis à chaque vue : view.render(root, context).
+export function startRouter({ root, routes, context = {}, onNavigate = () => {} }) {
     const render = () => {
         const route = matchRoute(window.location.hash, routes);
         root.replaceChildren();
-        route.view.render(root);
+        route.view.render(root, context);
         onNavigate(route);
     };
     window.addEventListener('hashchange', render);

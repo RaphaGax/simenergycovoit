@@ -1,5 +1,6 @@
 // Point d'entrée de l'application utilisateur EcoVroom (Passager / Conducteur).
 import { startRouter } from './ui/router.js';
+import { createTripRepository } from './services/tripRepository.js';
 import * as homeView from './ui/homeView.js';
 import * as searchView from './ui/passenger/searchView.js';
 import * as publishTripView from './ui/driver/publishTripView.js';
@@ -13,6 +14,7 @@ const routes = [
 startRouter({
     root: document.getElementById('app'),
     routes,
+    context: { tripRepository: createTripRepository() },
     onNavigate: route => {
         document.title = `${route.title} — EcoVroom`;
         for (const link of document.querySelectorAll('[data-nav]')) {
