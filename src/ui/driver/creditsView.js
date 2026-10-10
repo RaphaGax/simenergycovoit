@@ -2,13 +2,12 @@
 // historique et soumission pour validation. La validation elle-même est faite par un organisme
 // de certification, jamais par l'application.
 import {
-    aggregateCredits, submitForValidation, progressToNextCredit, CREDIT_STATUS
+    aggregateCredits, progressToNextCredit, CREDIT_STATUS
 } from '../../core/carbonCredits.js';
-import { canComplete, completeTrip } from '../../core/tripCompletion.js';
+import { canComplete } from '../../core/tripCompletion.js';
 import { seatsBooked } from '../../core/booking.js';
 import { el } from '../dom.js';
 import { formatCo2, formatCredits, formatDateTime } from '../format.js';
-import { LOCAL_DRIVER_ID } from '../session.js';
 import { tripSummary, plural } from '../components/tripSummary.js';
 import { driverNav } from './driverNav.js';
 
@@ -91,47 +90,41 @@ function historySection(entries, tripsById, onSubmit) {
     return section;
 }
 
-export function render(root, context) {
-    const { tripRepository, bookingRepository, creditRepository } = context;
+export async function render(root, context, route = {}) {
+    const { api } = context;
+    const [tripEntries, entries] = await Promise.all([api.trips.mine(), api.credits.mine()]);
+    const trips = tripEntries.map(entry => entry.trip);
+    const bookings = tripEntries.flatMap(entry => entry.bookings);
     const now = new Date();
-    const trips = tripRepository.list().filter(trip => trip.driverId === LOCAL_DRIVER_ID);
-    const bookings = bookingRepository.list();
-    const entries = creditRepository.list().filter(entry => entry.driverId === LOCAL_DRIVER_ID);
-    const status = el('p', { class: 'form-status', role: 'status' });
-    const rerender = message => {
+    const status = el('p', { class: 'form-status', role: 'status', text: route.message ?? '' });
+    const rerender = async message => {
         root.replaceChildren();
-        render(root, context);
-        root.querySelector('.form-status').textContent = message;
+        await render(root, context, { message });
     };
 
-    function onComplete(trip, button) {
+    async function onComplete(trip, button) {
         button.disabled = true;
         try {
-            const result = completeTrip({ trip, bookings: bookingRepository.list(), driverId: LOCAL_DRIVER_ID }, { now: new Date() });
-            // Crédit d'abord : en cas d'échec de l'écriture du trajet, une nouvelle confirmation
-            // remplace la même entrée (identifiant dérivé du trajet) sans la dupliquer.
-            if (result.creditEntry) creditRepository.save(result.creditEntry);
-            tripRepository.save(result.trip);
-            rerender(result.creditEntry
-                ? `Trajet confirmé : ${formatCredits(result.creditEntry.credits)} estimé (${formatCo2(result.creditEntry.co2AvoidedG)} de CO₂ évité).`
+            const { creditEntry } = await api.trips.complete(trip.id);
+            await rerender(creditEntry
+                ? `Trajet confirmé : ${formatCredits(creditEntry.credits)} estimé (${formatCo2(creditEntry.co2AvoidedG)} de CO₂ évité).`
                 : 'Trajet confirmé, sans passager : aucun crédit.');
         } catch (error) {
             console.error('Confirmation impossible :', error);
-            status.textContent = error instanceof RangeError ? error.message : 'La confirmation n’a pas pu être enregistrée.';
+            status.textContent = error.message;
             button.disabled = false;
         }
     }
 
-    function onSubmit(button) {
+    async function onSubmit(button) {
         button.disabled = true;
         try {
-            const submitted = submitForValidation(creditRepository.list().filter(e => e.driverId === LOCAL_DRIVER_ID), { now: new Date() });
-            submitted.forEach(entry => creditRepository.save(entry));
+            const submitted = await api.credits.submit();
             const total = submitted.reduce((sum, entry) => sum + entry.credits, 0);
-            rerender(`${formatCredits(total)} soumis pour validation.`);
+            await rerender(`${formatCredits(total)} soumis pour validation.`);
         } catch (error) {
             console.error('Soumission impossible :', error);
-            status.textContent = 'La soumission n’a pas pu être enregistrée.';
+            status.textContent = error.message;
             button.disabled = false;
         }
     }

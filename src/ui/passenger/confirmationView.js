@@ -1,5 +1,5 @@
 // Parcours Passager — confirmation de réservation, avec annulation possible avant le départ.
-import { canCancel, cancelBooking, BOOKING_STATUS } from '../../core/booking.js';
+import { canCancel, BOOKING_STATUS } from '../../core/booking.js';
 import { co2AvoidedForBooking } from '../../core/co2.js';
 import { el } from '../dom.js';
 import { formatCo2, formatDateTime } from '../format.js';
@@ -19,43 +19,50 @@ function details(booking, trip) {
         el('dt', { text: 'CO₂ évité' }), el('dd', { text: formatCo2(co2AvoidedForBooking(trip, booking)) }));
 }
 
-export function render(root, { tripRepository, bookingRepository }, { params }) {
-    const booking = bookingRepository.get(params.bookingId);
-    const trip = booking && tripRepository.get(booking.tripId);
+export async function render(root, context, { params }) {
+    const { api, user } = context;
     const card = el('section', { class: 'card' });
     root.append(card);
 
-    if (!booking || !trip) {
+    let found;
+    try {
+        found = await api.bookings.get(params.bookingId);
+    } catch (error) {
+        if (error.status !== 404) throw error;
         card.append(el('h2', { text: 'Réservation introuvable' }), backLink());
         return;
     }
+    const { booking, trip } = found;
+    const isPassenger = booking.passengerId === user.id;
 
     const cancelled = booking.status === BOOKING_STATUS.CANCELLED;
     card.append(
         el('p', { class: cancelled ? 'banner banner-cancelled' : 'banner banner-confirmed', role: 'status',
-            text: cancelled ? 'Réservation annulée.' : 'Réservation confirmée ! Votre trajet est gratuit.' }),
-        el('h2', { text: 'Votre réservation' }),
+            text: cancelled ? 'Réservation annulée.' : 'Réservation confirmée ! Le trajet est gratuit pour le passager.' }),
+        el('h2', { text: isPassenger ? 'Votre réservation' : 'Réservation d’un passager' }),
         tripSummary(trip),
         details(booking, trip));
 
-    if (canCancel(booking, trip, new Date())) {
+    if (isPassenger && canCancel(booking, trip, new Date())) {
         const status = el('p', { class: 'error-message', role: 'alert' });
         const cancelButton = el('button', { type: 'button', class: 'button-secondary', text: 'Annuler la réservation' });
         let armed = false;
-        cancelButton.addEventListener('click', () => {
+        cancelButton.addEventListener('click', async () => {
             // Premier clic : demande de confirmation ; second clic : annulation.
             if (!armed) {
                 armed = true;
                 cancelButton.textContent = 'Confirmer l’annulation';
                 return;
             }
+            cancelButton.disabled = true;
             try {
-                bookingRepository.save(cancelBooking(booking, trip, { now: new Date() }));
+                await api.bookings.cancel(booking.id);
                 root.replaceChildren();
-                render(root, { tripRepository, bookingRepository }, { params });
+                await render(root, context, { params });
             } catch (error) {
                 console.error('Erreur d’annulation :', error);
-                status.textContent = error instanceof RangeError ? error.message : 'L’annulation n’a pas pu être enregistrée.';
+                status.textContent = error.message;
+                cancelButton.disabled = false;
             }
         });
         card.append(el('div', { class: 'button-group' }, cancelButton), status);

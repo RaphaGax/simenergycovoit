@@ -2,15 +2,14 @@
 // Les critères sont gardés dans l'adresse (#/passager/recherche?destination=…) pour survivre au retour arrière.
 // Avec ORS et des lieux localisés, les trajets sont classés par détour du conducteur (matrice routière) ;
 // sinon, ou en cas d'erreur ORS, la recherche se fait par nom de lieu.
-import { searchTrips, validateSearch } from '../../core/search.js';
+import { validateSearch } from '../../core/search.js';
 import { preselectCandidates, matrixLocations, rankByDetour, MAX_DETOUR_MIN } from '../../core/matching.js';
 import { co2AvoidedForBooking } from '../../core/co2.js';
-import { BOOKING_STATUS } from '../../core/booking.js';
+import { BOOKING_STATUS, hasDeparted } from '../../core/booking.js';
 import { MAX_SEATS } from '../../core/trips.js';
 import { el } from '../dom.js';
-import { navigate } from '../router.js';
+import { navigate, loginPath } from '../router.js';
 import { formatCo2, formatDistance } from '../format.js';
-import { LOCAL_PASSENGER_ID } from '../session.js';
 import { tripSummary, priceBadge, plural } from '../components/tripSummary.js';
 import { createPlaceInput, coordsToParam, paramToCoords } from '../components/placeInput.js';
 
@@ -69,7 +68,8 @@ function resultItem(result, criteria) {
         passengerDistanceKm: result.passengerDistanceKm,
         detourKm: result.detourKm
     });
-    const details = [el('span', { text: `${plural(seatsLeft, 'place')} libre${seatsLeft > 1 ? 's' : ''}` })];
+    const driver = result.driverName ? `Avec ${result.driverName} · ` : '';
+    const details = [el('span', { text: `${driver}${plural(seatsLeft, 'place')} libre${seatsLeft > 1 ? 's' : ''}` })];
     if (result.detourMin != null) {
         details.push(el('span', { class: 'detour', text: result.detourMin < 1
             ? 'Sur la route du conducteur'
@@ -104,16 +104,14 @@ async function searchAlongRoute(available, criteria, ors) {
     return rankByDetour(candidates, matrix);
 }
 
-function myBookingsSection(bookings, tripRepository) {
-    const mine = bookings
-        .filter(b => b.passengerId === LOCAL_PASSENGER_ID && b.status === BOOKING_STATUS.CONFIRMED)
-        .map(booking => ({ booking, trip: tripRepository.get(booking.tripId) }))
-        .filter(({ trip }) => trip)
+function myBookingsSection(entries) {
+    const mine = entries
+        .filter(({ booking, trip }) => trip && booking.status === BOOKING_STATUS.CONFIRMED && !hasDeparted(trip, new Date()))
         .sort((a, b) => a.trip.departureAt.localeCompare(b.trip.departureAt));
 
     const section = el('section', { class: 'card' }, el('h2', { text: 'Mes réservations' }));
     if (mine.length === 0) {
-        section.append(el('p', { class: 'placeholder', text: 'Aucune réservation en cours.' }));
+        section.append(el('p', { class: 'placeholder', text: 'Aucune réservation à venir.' }));
         return section;
     }
     section.append(el('ul', { class: 'trip-list' }, ...mine.map(({ booking, trip }) => el('li', { class: 'trip-item' },
@@ -124,7 +122,16 @@ function myBookingsSection(bookings, tripRepository) {
     return section;
 }
 
-export function render(root, { tripRepository, bookingRepository, ors }, { query }) {
+function loginPrompt() {
+    return el('section', { class: 'card' },
+        el('h2', { text: 'Mes réservations' }),
+        el('p', {}, el('a', { href: `#${loginPath()}`, text: 'Connectez-vous' }),
+            ' pour réserver un trajet et retrouver vos réservations.'));
+}
+
+const loading = text => el('section', { class: 'card' }, el('p', { class: 'hint', text }));
+
+export async function render(root, { api, user, ors }, { query }) {
     const criteria = criteriaFromQuery(query);
     const { form, places } = searchForm(criteria, ors);
 
@@ -151,7 +158,6 @@ export function render(root, { tripRepository, bookingRepository, ors }, { query
         navigate(`/passager/recherche?${params}`);
     });
 
-    const bookings = bookingRepository.list();
     root.append(el('section', { class: 'card' },
         el('h2', { text: 'Rechercher un trajet' }),
         el('p', { class: 'hint', text: ors
@@ -160,36 +166,39 @@ export function render(root, { tripRepository, bookingRepository, ors }, { query
         form));
 
     const resultsSlot = el('div');
-    root.append(resultsSlot, myBookingsSection(bookings, tripRepository));
-    if (!validateSearch(criteria).valid) return;
+    const bookingsSlot = el('div');
+    root.append(resultsSlot, bookingsSlot);
 
-    const now = new Date();
-    const notMine = results => results.filter(({ trip }) => trip.driverId !== LOCAL_PASSENGER_ID);
+    const bookingsTask = user
+        ? api.bookings.mine().then(entries => bookingsSlot.replaceChildren(myBookingsSection(entries)))
+        : Promise.resolve(bookingsSlot.replaceChildren(loginPrompt()));
+    if (!validateSearch(criteria).valid) return bookingsTask;
+
     // Un libellé ORS (« Genève, GE, Suisse ») est réduit à sa première partie pour la recherche par nom.
     const placeName = (label, coords) => (coords ? label.split(',')[0].trim() : label);
-    const byName = () => notMine(searchTrips(tripRepository.list(), bookings, {
-        ...criteria,
+    const byName = () => api.trips.search({
         origin: placeName(criteria.origin, criteria.pickup),
-        destination: placeName(criteria.destination, criteria.dropoff)
-    }, { now }));
+        destination: placeName(criteria.destination, criteria.dropoff),
+        date: criteria.date,
+        seats: criteria.seats
+    });
 
+    let resultsTask;
     if (!(ors && criteria.pickup && criteria.dropoff)) {
-        resultsSlot.replaceChildren(resultsSection(byName(), criteria));
-        return;
+        resultsSlot.replaceChildren(loading('Recherche des trajets…'));
+        resultsTask = byName().then(results => resultsSlot.replaceChildren(resultsSection(results, criteria)));
+    } else {
+        resultsSlot.replaceChildren(loading('Recherche des trajets sur votre itinéraire…'));
+        resultsTask = api.trips.search({ date: criteria.date, seats: criteria.seats })
+            .then(available => searchAlongRoute(available, criteria, ors))
+            .then(results => resultsSlot.replaceChildren(resultsSection(results, criteria,
+                `Trajets passant à moins de ${MAX_DETOUR_MIN} min de détour de votre itinéraire, du plus direct au moins direct.`)))
+            .catch(async error => {
+                if (error.name === 'ApiError' && error.status === 401) throw error;
+                console.warn('Recherche par itinéraire indisponible :', error);
+                const results = await byName();
+                resultsSlot.replaceChildren(resultsSection(results, criteria, `${error.message} Résultats par nom de lieu.`));
+            });
     }
-
-    resultsSlot.replaceChildren(el('section', { class: 'card' }, el('p', { class: 'hint', text: 'Recherche des trajets sur votre itinéraire…' })));
-    const available = notMine(searchTrips(tripRepository.list(), bookings, { date: criteria.date, seats: criteria.seats }, { now }));
-    searchAlongRoute(available, criteria, ors)
-        .then(results => {
-            if (!resultsSlot.isConnected) return; // l'utilisateur a changé de page entre-temps
-            resultsSlot.replaceChildren(resultsSection(results, criteria,
-                `Trajets passant à moins de ${MAX_DETOUR_MIN} min de détour de votre itinéraire, du plus direct au moins direct.`));
-        })
-        .catch(error => {
-            console.warn('Recherche par itinéraire indisponible :', error);
-            if (!resultsSlot.isConnected) return;
-            resultsSlot.replaceChildren(resultsSection(byName(), criteria,
-                `${error.message} Résultats par nom de lieu.`));
-        });
+    await Promise.all([resultsTask, bookingsTask]);
 }

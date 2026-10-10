@@ -1,13 +1,12 @@
 // Parcours Conducteur — publication d'un trajet avec estimation CO₂ en direct.
-import { validateTrip, createTrip, MAX_SEATS, MAX_DISTANCE_KM } from '../../core/trips.js';
+import { validateTrip, MAX_SEATS, MAX_DISTANCE_KM } from '../../core/trips.js';
 import { co2AvoidedForTrip, co2AvoidedForBooking } from '../../core/co2.js';
 import { VEHICLE_PROFILES, VEHICLE_TYPES } from '../../core/emissionFactors.js';
 import { seatsBooked, hasDeparted, BOOKING_STATUS } from '../../core/booking.js';
 import { isValidCoords } from '../../core/geo.js';
 import { el } from '../dom.js';
 import { VEHICLE_LABELS, formatCo2, formatDistance } from '../format.js';
-import { LOCAL_DRIVER_ID } from '../session.js';
-import { tripSummary } from '../components/tripSummary.js';
+import { tripSummary, plural } from '../components/tripSummary.js';
 import { createPlaceInput } from '../components/placeInput.js';
 import { createItineraryPanel } from './itineraryPanel.js';
 import { driverNav } from './driverNav.js';
@@ -34,6 +33,11 @@ function toLocalInputValue(date) {
     return local.toISOString().slice(0, 16);
 }
 
+function toIsoOrEmpty(localValue) {
+    const date = new Date(localValue);
+    return localValue && !Number.isNaN(date.getTime()) ? date.toISOString() : '';
+}
+
 function readDraft(form, places) {
     const data = new FormData(form);
     return {
@@ -41,24 +45,24 @@ function readDraft(form, places) {
         destination: data.get('destination'),
         originCoords: places.origin.getPlace()?.coords ?? null,
         destinationCoords: places.destination.getPlace()?.coords ?? null,
-        departureAt: data.get('departureAt'),
+        // Heure locale du navigateur convertie en ISO : le serveur ne dépend pas de son propre fuseau.
+        departureAt: toIsoOrEmpty(data.get('departureAt')),
         distanceKm: parseFloat(data.get('distanceKm')),
         seats: Number(data.get('seats')),
         vehicleType: data.get('vehicleType')
     };
 }
 
-function renderTripList(container, trips, bookings, ors) {
+// entries : [{ trip, bookings }] renvoyés par le serveur pour le conducteur connecté.
+function renderTripList(container, entries, { api, ors }) {
     container.replaceChildren(el('h2', { text: 'Mes trajets publiés' }));
-    const mine = trips
-        .filter(trip => trip.driverId === LOCAL_DRIVER_ID)
-        .sort((a, b) => a.departureAt.localeCompare(b.departureAt));
-    if (mine.length === 0) {
+    if (entries.length === 0) {
         container.append(el('p', { class: 'placeholder', text: 'Aucun trajet publié pour le moment.' }));
         return;
     }
-    container.append(el('ul', { class: 'trip-list' }, ...mine.map(trip => {
-        const tripBookings = bookings.filter(b => b.tripId === trip.id && b.status === BOOKING_STATUS.CONFIRMED);
+    const sorted = [...entries].sort((a, b) => a.trip.departureAt.localeCompare(b.trip.departureAt));
+    container.append(el('ul', { class: 'trip-list' }, ...sorted.map(({ trip, bookings }) => {
+        const tripBookings = bookings.filter(b => b.status === BOOKING_STATUS.CONFIRMED);
         const booked = seatsBooked(trip.id, bookings);
         const avoided = tripBookings.reduce((sum, booking) => sum + co2AvoidedForBooking(trip, booking), 0);
         const departed = hasDeparted(trip, new Date());
@@ -70,17 +74,21 @@ function renderTripList(container, trips, bookings, ors) {
         const item = el('li', { class: 'trip-item' }, tripSummary(trip,
             ...(state ? [state] : []),
             el('span', { text: `Places réservées : ${booked}/${trip.seats}` }),
+            ...(tripBookings.length ? [el('span', {}, 'Passagers : ', ...tripBookings.flatMap((b, i) => [
+                ...(i > 0 ? [', '] : []),
+                el('a', { href: `#/passager/reservation/${encodeURIComponent(b.id)}`, text: `${b.passengerName} (${plural(b.seats, 'place')})` })
+            ]))] : []),
             el('span', { class: 'hint', text: `CO₂ évité avec les passagers actuels : ${formatCo2(avoided)}`
                 + ` · jusqu’à ${formatCo2(co2AvoidedForTrip({ ...trip, passengers: trip.seats }))} si complet` })));
         // Itinéraire optimisé par VROOM : nécessite ORS, des coordonnées et au moins une réservation.
         if (ors && !departed && tripBookings.length > 0 && isValidCoords(trip.originCoords) && isValidCoords(trip.destinationCoords)) {
-            item.append(createItineraryPanel({ trip, bookings: tripBookings, ors }));
+            item.append(createItineraryPanel({ trip, bookings: tripBookings, api }));
         }
         return item;
     })));
 }
 
-export function render(root, { tripRepository, bookingRepository, ors }) {
+export async function render(root, { api, ors }) {
     const now = new Date();
     const distanceInput = el('input', { type: 'number', min: '1', max: String(MAX_DISTANCE_KM), step: '0.1', inputmode: 'decimal' });
     const routeInfo = el('p', { class: 'hint', 'aria-live': 'polite' });
@@ -155,7 +163,9 @@ export function render(root, { tripRepository, bookingRepository, ors }) {
     form.addEventListener('input', onEdit);
     form.addEventListener('change', onEdit);
 
-    form.addEventListener('submit', event => {
+    const reloadList = async () => renderTripList(tripList, await api.trips.mine(), { api, ors });
+
+    form.addEventListener('submit', async event => {
         event.preventDefault();
         const draft = readDraft(form, places);
         const { valid, errors } = validateTrip(draft, { now: new Date() });
@@ -166,13 +176,18 @@ export function render(root, { tripRepository, bookingRepository, ors }) {
             return;
         }
 
+        const submit = form.querySelector('button[type=submit]');
+        submit.disabled = true;
         let trip;
         try {
-            trip = tripRepository.save(createTrip(draft, { id: crypto.randomUUID(), driverId: LOCAL_DRIVER_ID }));
+            trip = await api.trips.publish(draft);
         } catch (error) {
             console.error('Erreur de publication :', error);
-            status.textContent = 'Le trajet n’a pas pu être enregistré. Vérifiez que le stockage du navigateur est autorisé.';
+            showErrors(error.fields ?? {});
+            status.textContent = error.message;
             return;
+        } finally {
+            submit.disabled = false;
         }
         status.textContent = `Trajet ${trip.origin} → ${trip.destination} publié.`;
         form.reset();
@@ -183,7 +198,7 @@ export function render(root, { tripRepository, bookingRepository, ors }) {
         seatsInput.value = String(defaultSeatsFor(DEFAULT_VEHICLE));
         seatsEdited = false;
         refreshEstimate();
-        renderTripList(tripList, tripRepository.list(), bookingRepository.list(), ors);
+        await reloadList();
     });
 
     root.append(
@@ -196,5 +211,6 @@ export function render(root, { tripRepository, bookingRepository, ors }) {
     );
     refreshEstimate();
     updateRoute();
-    renderTripList(tripList, tripRepository.list(), bookingRepository.list(), ors);
+    tripList.append(el('p', { class: 'hint', text: 'Chargement de vos trajets…' }));
+    await reloadList();
 }

@@ -1,0 +1,382 @@
+// Application HTTP EcoVroom : API JSON sous /api et fichiers statiques de l'application.
+// Les règles métier viennent de src/core (mêmes fonctions pures que le client) : le serveur
+// les applique sur les données partagées et reste seul juge (prix 0 CHF, places, droits).
+import { randomUUID, randomBytes } from 'node:crypto';
+import { validateTrip, createTrip } from '../src/core/trips.js';
+import { searchTrips, validateSearch } from '../src/core/search.js';
+import {
+    bookingRefusal, createBooking, cancelBooking, BOOKING_STATUS
+} from '../src/core/booking.js';
+import { completeTrip } from '../src/core/tripCompletion.js';
+import { submitForValidation } from '../src/core/carbonCredits.js';
+import { isValidCoords } from '../src/core/geo.js';
+import { buildTripProblem } from '../src/core/vroom/buildTripProblem.js';
+import { parseTripSolution } from '../src/core/vroom/parseTripSolution.js';
+import { MAX_CANDIDATES } from '../src/core/matching.js';
+import { createAuth, createRateLimiter, SESSION_COOKIE, SESSION_DAYS } from './auth.js';
+import {
+    HttpError, readJson, sendJson, parseCookies, serializeCookie, createRouter, createStaticHandler
+} from './http.js';
+
+const SECURITY_HEADERS = {
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'same-origin',
+    'Content-Security-Policy': [
+        "default-src 'self'",
+        "script-src 'self' https://cdn.jsdelivr.net", // Chart.js du simulateur de parc
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        'font-src https://fonts.gstatic.com',
+        "connect-src 'self'",
+        "img-src 'self' data:",
+        "frame-ancestors 'none'"
+    ].join('; ')
+};
+
+const MAX_MATRIX_LOCATIONS = 2 + 2 * MAX_CANDIDATES;
+
+function bookingReference() {
+    return `EV-${randomBytes(4).toString('hex').slice(0, 6).toUpperCase()}`;
+}
+
+function requireCoords(value, name) {
+    if (!isValidCoords(value)) throw new HttpError(400, `Coordonnées invalides : ${name}.`);
+    return value;
+}
+
+// Seules les erreurs métier du core (RangeError) remontent telles quelles à l'utilisateur.
+function businessError(error, status = 400) {
+    if (error instanceof RangeError) return new HttpError(status, error.message);
+    return error;
+}
+
+export const DEFAULT_LIMITS = Object.freeze({
+    authPerIp: 30, // inscriptions et connexions par adresse IP, sur 15 minutes
+    loginPerEmail: 10, // tentatives de connexion par compte, sur 15 minutes
+    orsPerUser: 120 // appels d'itinéraire par utilisateur, par minute
+});
+
+export function createApp({ db, ors = null, staticDir, secureCookies = false, now = () => new Date(), limits = {} }) {
+    const { authPerIp, loginPerEmail, orsPerUser } = { ...DEFAULT_LIMITS, ...limits };
+    const auth = createAuth(db, { now });
+    const serveStatic = createStaticHandler(staticDir);
+    const loginByIp = createRateLimiter({ limit: authPerIp, windowMs: 15 * 60000 });
+    const loginByEmail = createRateLimiter({ limit: loginPerEmail, windowMs: 15 * 60000 });
+    const orsByUser = createRateLimiter({ limit: orsPerUser, windowMs: 60000 });
+
+    const sessionCookie = (token, maxAge) => serializeCookie(SESSION_COOKIE, token, { maxAge, secure: secureCookies });
+
+    function requireUser(ctx) {
+        if (!ctx.user) throw new HttpError(401, 'Connectez-vous pour continuer.');
+        return ctx.user;
+    }
+
+    // Trajets publics avec places restantes et prénom du conducteur (jamais son e-mail).
+    function withAvailability(trips) {
+        const seats = db.bookings.seatsBookedByTrip(trips.map(t => t.id));
+        const names = db.users.names([...new Set(trips.map(t => t.driverId))]);
+        return trips.map(trip => ({
+            trip,
+            seatsLeft: Math.max(0, trip.seats - (seats.get(trip.id) ?? 0)),
+            driverName: names.get(trip.driverId) ?? ''
+        }));
+    }
+
+    function ownTrip(ctx, tripId) {
+        const user = requireUser(ctx);
+        const trip = db.trips.get(tripId);
+        if (!trip || trip.driverId !== user.id) throw new HttpError(404, 'Trajet introuvable.');
+        return trip;
+    }
+
+    function requireOrs(ctx) {
+        const user = requireUser(ctx);
+        if (!ors) throw new HttpError(503, 'Les itinéraires ne sont pas configurés sur ce serveur.');
+        if (!orsByUser.take(user.id)) throw new HttpError(429, 'Trop de requêtes d’itinéraire, réessayez dans une minute.');
+        return ors;
+    }
+
+    async function callOrs(fn) {
+        try {
+            return await fn();
+        } catch (error) {
+            if (error.name === 'OrsError') throw new HttpError(502, error.message);
+            throw error;
+        }
+    }
+
+    const routes = [
+        ['GET', '/api/config', () => ({ orsEnabled: Boolean(ors) })],
+
+        // Authentification
+        ['POST', '/api/auth/register', async ctx => {
+            const body = await readJson(ctx.req);
+            if (!loginByIp.take(ctx.ip)) throw new HttpError(429, 'Trop de tentatives, réessayez plus tard.');
+            const { user, errors } = await auth.register(body);
+            if (errors) throw new HttpError(400, 'Inscription impossible.', { fields: errors });
+            const { token } = auth.startSession(user.id);
+            ctx.setCookie(sessionCookie(token, SESSION_DAYS * 86400));
+            return { status: 201, body: { user } };
+        }],
+        ['POST', '/api/auth/login', async ctx => {
+            const body = await readJson(ctx.req);
+            const email = String(body.email ?? '').trim().toLowerCase();
+            if (!loginByIp.take(ctx.ip) || !loginByEmail.take(email)) {
+                throw new HttpError(429, 'Trop de tentatives, réessayez dans quelques minutes.');
+            }
+            const user = await auth.authenticate(email, body.password);
+            if (!user) throw new HttpError(401, 'E-mail ou mot de passe incorrect.');
+            loginByEmail.reset(email);
+            const { token } = auth.startSession(user.id);
+            ctx.setCookie(sessionCookie(token, SESSION_DAYS * 86400));
+            return { user };
+        }],
+        ['POST', '/api/auth/logout', ctx => {
+            auth.endSession(ctx.token);
+            ctx.setCookie(sessionCookie('', 0));
+            return { ok: true };
+        }],
+        ['GET', '/api/auth/me', ctx => ({ user: ctx.user })],
+
+        // Trajets
+        ['GET', '/api/trips', ctx => {
+            const q = ctx.query;
+            const criteria = {
+                origin: q.get('origin') ?? '',
+                destination: q.get('destination') ?? '',
+                date: q.get('date') ?? '',
+                seats: q.has('seats') ? Number(q.get('seats')) : 1
+            };
+            const { valid, errors } = validateSearch(criteria);
+            if (!valid) throw new HttpError(400, 'Recherche invalide.', { fields: errors });
+            const current = now();
+            const upcoming = db.trips.upcoming(current.toISOString()).filter(trip => trip.driverId !== ctx.user?.id);
+            const seats = db.bookings.seatsBookedByTrip(upcoming.map(t => t.id));
+            const pseudoBookings = [...seats].map(([tripId, booked]) => ({ tripId, seats: booked, status: BOOKING_STATUS.CONFIRMED }));
+            const ids = new Set(searchTrips(upcoming, pseudoBookings, criteria, { now: current }).map(r => r.trip.id));
+            return { results: withAvailability(upcoming.filter(trip => ids.has(trip.id))) };
+        }],
+        ['GET', '/api/trips/:id', ctx => {
+            const trip = db.trips.get(ctx.params.id);
+            if (!trip) throw new HttpError(404, 'Ce trajet n’existe pas ou n’est plus disponible.');
+            return withAvailability([trip])[0];
+        }],
+        ['POST', '/api/trips', async ctx => {
+            const user = requireUser(ctx);
+            const body = await readJson(ctx.req);
+            const draft = {
+                origin: body.origin, destination: body.destination,
+                originCoords: body.originCoords ?? null, destinationCoords: body.destinationCoords ?? null,
+                departureAt: body.departureAt, distanceKm: body.distanceKm, seats: body.seats, vehicleType: body.vehicleType
+            };
+            const { valid, errors } = validateTrip(draft, { now: now() });
+            if (!valid) throw new HttpError(400, 'Trajet invalide.', { fields: errors });
+            const trip = db.trips.insert(createTrip(draft, { id: randomUUID(), driverId: user.id, now: now() }));
+            return { status: 201, body: { trip } };
+        }],
+        ['POST', '/api/trips/:id/complete', async ctx => {
+            await readJson(ctx.req);
+            const user = requireUser(ctx);
+            return db.transaction(() => {
+                const trip = ownTrip(ctx, ctx.params.id);
+                let result;
+                try {
+                    result = completeTrip({ trip, bookings: db.bookings.byTrip(trip.id), driverId: user.id }, { now: now() });
+                } catch (error) {
+                    throw businessError(error, 409);
+                }
+                db.trips.markCompleted(trip.id, result.trip.completedAt);
+                if (result.creditEntry) db.credits.upsert(result.creditEntry);
+                return result;
+            });
+        }],
+        ['POST', '/api/trips/:id/itinerary', async ctx => {
+            await readJson(ctx.req);
+            const trip = ownTrip(ctx, ctx.params.id);
+            const client = requireOrs(ctx);
+            const bookings = db.bookings.byTrip(trip.id).filter(b => b.status === BOOKING_STATUS.CONFIRMED);
+            let built;
+            try {
+                built = buildTripProblem(trip, bookings);
+            } catch (error) {
+                throw businessError(error);
+            }
+            const solution = await callOrs(() => client.optimize(built.problem));
+            try {
+                return { plan: parseTripSolution(solution, built.shipmentBookingIds) };
+            } catch (error) {
+                throw new HttpError(502, error.message);
+            }
+        }],
+
+        // Réservations
+        ['POST', '/api/bookings', async ctx => {
+            const user = requireUser(ctx);
+            const body = await readJson(ctx.req);
+            const seats = Number(body.seats);
+            // Lecture des places et écriture dans la même transaction : pas de surréservation possible.
+            return db.transaction(() => {
+                const trip = db.trips.get(String(body.tripId ?? ''));
+                const bookings = trip ? db.bookings.byTrip(trip.id) : [];
+                const refusal = bookingRefusal({ trip, bookings, passengerId: user.id, seats }, { now: now() });
+                if (refusal) throw new HttpError(trip ? 409 : 404, refusal);
+                let booking;
+                try {
+                    booking = createBooking(
+                        { trip, bookings, passengerId: user.id, seats, route: body.route ?? {} },
+                        { id: randomUUID(), reference: bookingReference(), now: now() });
+                } catch (error) {
+                    throw businessError(error);
+                }
+                for (let attempt = 0; ; attempt++) {
+                    try {
+                        db.bookings.insert(booking);
+                        break;
+                    } catch (error) {
+                        if (attempt < 3 && String(error.message).includes('bookings.reference')) {
+                            booking = { ...booking, reference: bookingReference() };
+                            continue;
+                        }
+                        throw error;
+                    }
+                }
+                return { status: 201, body: { booking, trip } };
+            });
+        }],
+        ['GET', '/api/bookings/:id', ctx => {
+            const user = requireUser(ctx);
+            const booking = db.bookings.get(ctx.params.id);
+            const trip = booking && db.trips.get(booking.tripId);
+            // Visible par le passager et par le conducteur du trajet uniquement.
+            if (!booking || (booking.passengerId !== user.id && trip.driverId !== user.id)) {
+                throw new HttpError(404, 'Réservation introuvable.');
+            }
+            return { booking, trip };
+        }],
+        ['POST', '/api/bookings/:id/cancel', async ctx => {
+            await readJson(ctx.req);
+            const user = requireUser(ctx);
+            return db.transaction(() => {
+                const booking = db.bookings.get(ctx.params.id);
+                if (!booking || booking.passengerId !== user.id) throw new HttpError(404, 'Réservation introuvable.');
+                const trip = db.trips.get(booking.tripId);
+                let cancelled;
+                try {
+                    cancelled = cancelBooking(booking, trip, { now: now() });
+                } catch (error) {
+                    throw businessError(error, 409);
+                }
+                db.bookings.cancel(booking.id, cancelled.cancelledAt);
+                return { booking: cancelled, trip };
+            });
+        }],
+
+        // Espace personnel
+        ['GET', '/api/me/bookings', ctx => {
+            const user = requireUser(ctx);
+            return {
+                bookings: db.bookings.byPassenger(user.id).map(booking => ({ booking, trip: db.trips.get(booking.tripId) }))
+            };
+        }],
+        ['GET', '/api/me/trips', ctx => {
+            const user = requireUser(ctx);
+            const trips = db.trips.byDriver(user.id);
+            const bookings = db.bookings.byTrips(trips.map(t => t.id));
+            const names = db.users.names([...new Set(bookings.map(b => b.passengerId))]);
+            return {
+                trips: trips.map(trip => ({
+                    trip,
+                    bookings: bookings
+                        .filter(b => b.tripId === trip.id)
+                        .map(b => ({ ...b, passengerName: names.get(b.passengerId) ?? '' }))
+                }))
+            };
+        }],
+        ['GET', '/api/me/credits', ctx => {
+            const user = requireUser(ctx);
+            return { entries: db.credits.byDriver(user.id) };
+        }],
+        ['POST', '/api/me/credits/submit', async ctx => {
+            await readJson(ctx.req);
+            const user = requireUser(ctx);
+            return db.transaction(() => {
+                const submitted = submitForValidation(db.credits.byDriver(user.id), { now: now() });
+                submitted.forEach(entry => db.credits.upsert(entry));
+                return { submitted };
+            });
+        }],
+
+        // openrouteservice : la clé reste sur le serveur ; seules ces opérations sont exposées.
+        ['GET', '/api/ors/autocomplete', async ctx => {
+            const client = requireOrs(ctx);
+            const text = String(ctx.query.get('text') ?? '').trim();
+            if (text.length < 2 || text.length > 100) throw new HttpError(400, 'Texte de recherche invalide.');
+            return { places: await callOrs(() => client.autocomplete(text)) };
+        }],
+        ['POST', '/api/ors/directions', async ctx => {
+            const body = await readJson(ctx.req);
+            const client = requireOrs(ctx);
+            const from = requireCoords(body.from, 'départ');
+            const to = requireCoords(body.to, 'arrivée');
+            return await callOrs(() => client.directions(from, to));
+        }],
+        ['POST', '/api/ors/matrix', async ctx => {
+            const body = await readJson(ctx.req);
+            const client = requireOrs(ctx);
+            const locations = body.locations;
+            if (!Array.isArray(locations) || locations.length < 2 || locations.length > MAX_MATRIX_LOCATIONS) {
+                throw new HttpError(400, 'Liste de lieux invalide.');
+            }
+            locations.forEach((coords, i) => requireCoords(coords, `lieu ${i + 1}`));
+            return await callOrs(() => client.matrix(locations));
+        }]
+    ];
+    const match = createRouter(routes);
+
+    return async function handle(req, res) {
+        const url = new URL(req.url, 'http://localhost');
+        const extraHeaders = { ...SECURITY_HEADERS };
+        const cookies = [];
+
+        try {
+            if (!url.pathname.startsWith('/api/')) {
+                if ((req.method === 'GET' || req.method === 'HEAD') && await serveStatic(url.pathname, res, extraHeaders)) return;
+                throw new HttpError(404, 'Page introuvable.');
+            }
+
+            // Protection CSRF : une requête d'écriture venant d'un autre site est refusée
+            // (en plus du cookie SameSite=Lax et du contenu JSON obligatoire).
+            if (req.method !== 'GET' && req.headers.origin) {
+                const origin = new URL(req.headers.origin);
+                if (origin.host !== req.headers.host) throw new HttpError(403, 'Origine refusée.');
+            }
+
+            const found = match(req.method, url.pathname);
+            if (!found) throw new HttpError(404, 'Ressource introuvable.');
+
+            const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
+            const ctx = {
+                req,
+                params: found.params,
+                query: url.searchParams,
+                token,
+                user: auth.userForToken(token),
+                ip: req.socket.remoteAddress ?? 'inconnu',
+                setCookie: cookie => cookies.push(cookie)
+            };
+            const result = await found.handler(ctx);
+            const { status = 200, body = result } = result && 'status' in result && 'body' in result ? result : {};
+            sendJson(res, status, body, { ...extraHeaders, ...(cookies.length ? { 'Set-Cookie': cookies } : {}) });
+        } catch (error) {
+            if (!(error instanceof HttpError)) console.error('Erreur serveur :', error);
+            const status = error instanceof HttpError ? error.status : 500;
+            const message = error instanceof HttpError ? error.message : 'Erreur interne du serveur.';
+            if (url.pathname.startsWith('/api/') || status !== 404) {
+                sendJson(res, status, { error: message, ...(error.fields ? { fields: error.fields } : {}) }, extraHeaders);
+            } else {
+                res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', ...extraHeaders });
+                res.end('Page introuvable.');
+            }
+        }
+    };
+}

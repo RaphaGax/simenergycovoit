@@ -43,14 +43,40 @@ export function navigate(path) {
     window.location.hash = `#${path}`;
 }
 
-// context (services partagés) est transmis à chaque vue : view.render(root, context, { params, query }).
-export function startRouter({ root, routes, context = {}, onNavigate = () => {} }) {
-    const render = () => {
+// Chemin courant (avec sa requête), pour revenir après la connexion.
+export const currentPath = () => window.location.hash.replace(/^#/, '') || DEFAULT_PATH;
+export const loginPath = (returnTo = currentPath()) => `/connexion?retour=${encodeURIComponent(returnTo)}`;
+
+// context (services partagés, utilisateur connecté) est transmis à chaque vue :
+// await view.render(container, context, { params, query }).
+// Une route { auth: true } redirige vers la connexion sans utilisateur connecté.
+// Chaque affichage a son propre conteneur : une vue lente qui se termine après un changement
+// de page écrit dans un conteneur détaché, sans effet visible.
+export function startRouter({ root, routes, context = {}, onNavigate = () => {}, renderError }) {
+    const render = async () => {
         const match = matchRoute(window.location.hash, routes);
-        root.replaceChildren();
-        match.route.view.render(root, context, { params: match.params, query: match.query });
+        if (match.route.auth && !context.user) {
+            navigate(loginPath());
+            return;
+        }
+        const container = document.createElement('div');
+        container.className = 'view';
+        container.setAttribute('aria-busy', 'true');
+        root.replaceChildren(container);
         onNavigate(match.route);
         window.scrollTo(0, 0);
+        try {
+            await match.route.view.render(container, context, { params: match.params, query: match.query });
+        } catch (error) {
+            if (error?.status === 401) {
+                navigate(loginPath());
+                return;
+            }
+            console.error('Erreur d’affichage :', error);
+            container.replaceChildren(renderError(error));
+        } finally {
+            container.removeAttribute('aria-busy');
+        }
     };
     window.addEventListener('hashchange', render);
     render();

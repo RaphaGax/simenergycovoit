@@ -1,4 +1,7 @@
-# Clé openrouteservice locale
-src/config.local.js
-
 node_modules/
+
+# Base de données locale (DATABASE_PATH)
+data/
+
+# Variables d'environnement locales (ORS_API_KEY…)
+.env

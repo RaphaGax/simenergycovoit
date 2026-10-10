@@ -1,7 +1,5 @@
-// Itinéraire optimisé d'un trajet (VROOM via ORS /optimization) : ordre des prises en charge
-// et des déposes, avec heures estimées.
-import { buildTripProblem } from '../../core/vroom/buildTripProblem.js';
-import { parseTripSolution } from '../../core/vroom/parseTripSolution.js';
+// Itinéraire optimisé d'un trajet : le serveur construit le problème VROOM à partir des
+// réservations confirmées et interroge ORS /optimization ; on affiche l'ordre des arrêts.
 import { el } from '../dom.js';
 import { formatDistance } from '../format.js';
 import { plural } from '../components/tripSummary.js';
@@ -11,15 +9,15 @@ const formatTime = iso => new Date(iso).toLocaleTimeString('fr-CH', { hour: '2-d
 function stopLabel(stop, trip, bookingsById) {
     if (stop.type === 'start') return `Départ : ${trip.origin}`;
     if (stop.type === 'end') return `Arrivée : ${trip.destination}`;
-    const booking = bookingsById.get(stop.bookingId);
+    const booking = bookingsById.get(stop.bookingId) ?? { seats: 0, reference: '?' };
     const place = stop.type === 'pickup'
         ? booking.pickup?.label ?? trip.origin
         : booking.dropoff?.label ?? trip.destination;
-    const who = `${plural(booking.seats, 'passager')} (réf. ${booking.reference})`;
+    const who = `${booking.passengerName || plural(booking.seats, 'passager')} (${plural(booking.seats, 'place')}, réf. ${booking.reference})`;
     return stop.type === 'pickup' ? `Prise en charge : ${place} — ${who}` : `Dépose : ${place} — ${who}`;
 }
 
-export function createItineraryPanel({ trip, bookings, ors }) {
+export function createItineraryPanel({ trip, bookings, api }) {
     const bookingsById = new Map(bookings.map(booking => [booking.id, booking]));
     const result = el('div', { class: 'itinerary', 'aria-live': 'polite' });
     const button = el('button', { type: 'button', class: 'button-secondary-neutral', text: 'Planifier l’itinéraire (VROOM)' });
@@ -28,8 +26,7 @@ export function createItineraryPanel({ trip, bookings, ors }) {
         button.disabled = true;
         result.replaceChildren(el('p', { class: 'hint', text: 'Optimisation de l’itinéraire…' }));
         try {
-            const { problem, shipmentBookingIds } = buildTripProblem(trip, bookings);
-            const plan = parseTripSolution(await ors.optimize(problem), shipmentBookingIds);
+            const plan = await api.trips.itinerary(trip.id);
             const summary = [`${Math.round(plan.durationMin)} min`];
             if (plan.distanceKm != null) summary.unshift(formatDistance(plan.distanceKm));
 
