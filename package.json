@@ -1,0 +1,17 @@
+{
+  "name": "ecovroom-light",
+  "version": "1.0.0",
+  "description": "EcoVroom light : simulateur de bilan énergétique d'un parc de covoiturage en Suisse",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test \"tests/**/*.test.js\""
+  },
+  "devDependencies": {
+    "jsdom": "25.0.1"
+  }
+}

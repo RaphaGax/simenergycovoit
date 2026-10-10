@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoVroom light</title>
+    <meta name="description" content="Simulateur de bilan énergétique d'un parc de covoiturage en Suisse.">
+    <link rel="stylesheet" href="./styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>EcoVroom light <small>1.0</small></h1>
+            <p>Analysez la consommation et les émissions de votre parc automobile de covoiturage en Suisse.</p>
+            <p class="status" id="status" data-mode="unknown">Connexion au serveur…</p>
+        </header>
+
+        <form id="config" class="card" novalidate>
+            <h2>Configuration du parc</h2>
+            <div class="grid">
+                <div class="input-group">
+                    <label for="totalCars">Nombre total de voitures</label>
+                    <input type="number" id="totalCars" name="totalCars" min="1" max="100000" step="1">
+                </div>
+                <div class="input-group">
+                    <label for="aiRequests">Requêtes IA par utilisateur/jour</label>
+                    <input type="number" id="aiRequests" name="aiRequests" min="0" step="1">
+                </div>
+                <div class="input-group">
+                    <label for="dailyKm">Distance quotidienne par voiture (km)</label>
+                    <input type="number" id="dailyKm" name="dailyKm" min="0" max="2000" step="1">
+                </div>
+                <div class="input-group">
+                    <label for="daysPerYear">Jours de circulation par an</label>
+                    <input type="number" id="daysPerYear" name="daysPerYear" min="1" max="366" step="1">
+                </div>
+                <div class="input-group">
+                    <label for="occupancy">Taux de remplissage moyen (%)</label>
+                    <input type="number" id="occupancy" name="occupancy" min="1" max="100" step="1">
+                </div>
+            </div>
+
+            <fieldset>
+                <legend>Répartition des types de véhicules (%)</legend>
+                <div class="grid" id="mixInputs"></div>
+                <p class="mix-total">Total : <span id="mixTotal">–</span> %</p>
+            </fieldset>
+
+            <div id="errors" class="error" role="alert" hidden></div>
+
+            <div class="button-group">
+                <button type="submit">Calculer</button>
+                <button type="button" id="resetBtn" class="secondary">Réinitialiser</button>
+            </div>
+        </form>
+
+        <section id="results" class="card" hidden>
+            <div class="section-head">
+                <h2>Résultats</h2>
+                <button type="button" id="exportBtn" class="secondary small">Exporter en CSV</button>
+            </div>
+            <p class="source">Calcul effectué <span id="source"></span>.</p>
+
+            <div class="summary">
+                <p>Places totales <strong id="totalSeats"></strong></p>
+                <p>Utilisateurs potentiels <strong id="totalUsers"></strong></p>
+                <p>Énergie du parc <strong><span id="totalEnergy"></span> kWh/km</strong></p>
+                <p>CO₂ du parc <strong><span id="totalCO2"></span> g/km</strong></p>
+                <p>NOx du parc <strong><span id="totalNOx"></span> g/km</strong></p>
+                <p>SO₂ du parc <strong><span id="totalSO2"></span> g/km</strong></p>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Type</th><th>Nombre</th><th>Places</th><th>Consommation (kWh/km)</th>
+                            <th>CO₂ direct (g/km)</th><th>CO₂ réseau (g/km)</th><th>NOx (g/km)</th><th>SO₂ (g/km)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody"></tbody>
+                </table>
+            </div>
+
+            <div class="charts">
+                <div class="chart-box"><canvas id="vehicleChart" aria-label="Répartition des véhicules" role="img"></canvas></div>
+                <div class="chart-box"><canvas id="emissionsChart" aria-label="Émissions de CO₂ par type" role="img"></canvas></div>
+            </div>
+        </section>
+
+        <section id="annual" class="card" hidden>
+            <h2>Bilan annuel et comparaison avec l'autosolisme</h2>
+            <div class="summary">
+                <p>Kilomètres parcourus par le parc <strong id="fleetKm"></strong></p>
+                <p>Passagers transportés <strong id="passengers"></strong></p>
+                <p>Énergie consommée <strong><span id="annualEnergy"></span> kWh</strong></p>
+                <p>CO₂ émis <strong><span id="annualCO2"></span> kg</strong></p>
+                <p>Énergie par passager-km <strong><span id="energyPerPkm"></span> kWh</strong></p>
+                <p>CO₂ par passager-km <strong><span id="co2PerPkm"></span> g</strong></p>
+            </div>
+            <div class="savings" id="savings">
+                <p>Si chaque passager roulait seul : <strong><span id="soloCO2"></span> kg CO₂</strong></p>
+                <p>Économie grâce au covoiturage : <strong><span id="savedCO2"></span> kg CO₂ (<span id="savedPct"></span> %)</strong></p>
+            </div>
+            <h3>Assistant IA</h3>
+            <div class="summary">
+                <p>Par utilisateur <strong><span id="aiEnergy"></span> kWh/jour</strong></p>
+                <p>Par utilisateur <strong><span id="aiCO2"></span> g CO₂/jour</strong></p>
+                <p>Sur l'année <strong><span id="aiCO2Year"></span> kg CO₂</strong></p>
+            </div>
+        </section>
+
+        <section id="userConsumption" class="card" hidden>
+            <h2>Consommation par utilisateur selon la charge</h2>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr><th>Charge (%)</th><th>Utilisateurs</th><th>Consommation (kWh/km/utilisateur)</th><th>CO₂ (g/km/utilisateur)</th></tr>
+                    </thead>
+                    <tbody id="userConsumptionBody"></tbody>
+                </table>
+            </div>
+            <div class="chart-box"><canvas id="userConsumptionChart" aria-label="Consommation par utilisateur" role="img"></canvas></div>
+        </section>
+
+        <section id="scenarios" class="card">
+            <h2>Scénarios enregistrés</h2>
+            <form id="scenarioForm" class="inline-form">
+                <label for="scenarioName" class="visually-hidden">Nom du scénario</label>
+                <input type="text" id="scenarioName" placeholder="Nom du scénario (ex. Parc 2030)" maxlength="80" required>
+                <button type="submit" id="saveScenarioBtn">Enregistrer la configuration</button>
+            </form>
+            <p id="scenarioMessage" class="hint" aria-live="polite"></p>
+            <ul id="scenarioList" class="scenario-list"></ul>
+        </section>
+
+        <section id="about" class="card">
+            <h3>À propos</h3>
+            <p>Données basées sur SuisseEnergie et l'OFEN. Hypothèses : mix électrique suisse (10 g CO₂/kWh) appliqué
+                à l'électricité des véhicules électriques, hybrides et à hydrogène ; PUE datacenter = 1,5 ;
+                consommation IA = 0,02 kWh/requête. Le scénario « autosolisme » suppose que chaque passager
+                conduit seul une voiture moyenne du parc.</p>
+        </section>
+    </div>
+    <script type="module" src="./js/main.js"></script>
+</body>
+</html>
