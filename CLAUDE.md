@@ -14,7 +14,8 @@ Application de covoiturage basée sur l'algorithme VROOM.
 - Tout déplacement de code du parc doit conserver le comportement à l'identique,
   y compris ses bizarreries connues ; une correction se fait dans un commit séparé et explicite.
 - `tests/fleet/` contient des tests de référence : ils doivent toujours passer.
-- L'ancien `script.js` n'est retiré qu'après preuve d'équivalence et accord explicite.
+- L'ancien `script.js` a été retiré après preuve d'équivalence et accord explicite ;
+  il reste consultable dans l'historique git (commit 39cf9a6).
 
 ## Architecture
 - JavaScript moderne, ES Modules (`import` / `export`), pas de bundler.
