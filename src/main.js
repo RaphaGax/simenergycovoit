@@ -2,6 +2,7 @@
 import { startRouter } from './ui/router.js';
 import { createTripRepository } from './services/tripRepository.js';
 import { createBookingRepository } from './services/bookingRepository.js';
+import { createCreditRepository } from './services/creditRepository.js';
 import { loadConfig } from './services/config.js';
 import { createOrsClient } from './services/orsClient.js';
 import * as homeView from './ui/homeView.js';
@@ -9,13 +10,15 @@ import * as searchView from './ui/passenger/searchView.js';
 import * as bookingView from './ui/passenger/bookingView.js';
 import * as confirmationView from './ui/passenger/confirmationView.js';
 import * as publishTripView from './ui/driver/publishTripView.js';
+import * as creditsView from './ui/driver/creditsView.js';
 
 const routes = [
     { path: '/', title: 'Accueil', view: homeView },
     { path: '/passager/recherche', section: 'passager', title: 'Rechercher un trajet', view: searchView },
     { path: '/passager/reserver/:tripId', section: 'passager', title: 'Réserver', view: bookingView },
     { path: '/passager/reservation/:bookingId', section: 'passager', title: 'Ma réservation', view: confirmationView },
-    { path: '/conducteur/publier', section: 'conducteur', title: 'Publier un trajet', view: publishTripView }
+    { path: '/conducteur/publier', section: 'conducteur', title: 'Publier un trajet', view: publishTripView },
+    { path: '/conducteur/credits', section: 'conducteur', title: 'Mes crédits carbone', view: creditsView }
 ];
 
 // Sans clé openrouteservice, ors vaut null : l'application fonctionne sans géocodage ni itinéraires.
@@ -28,6 +31,7 @@ startRouter({
     context: {
         tripRepository: createTripRepository(),
         bookingRepository: createBookingRepository(),
+        creditRepository: createCreditRepository(),
         ors
     },
     onNavigate: route => {

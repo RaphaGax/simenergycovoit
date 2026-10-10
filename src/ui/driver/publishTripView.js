@@ -2,7 +2,7 @@
 import { validateTrip, createTrip, MAX_SEATS, MAX_DISTANCE_KM } from '../../core/trips.js';
 import { co2AvoidedForTrip, co2AvoidedForBooking } from '../../core/co2.js';
 import { VEHICLE_PROFILES, VEHICLE_TYPES } from '../../core/emissionFactors.js';
-import { seatsBooked, BOOKING_STATUS } from '../../core/booking.js';
+import { seatsBooked, hasDeparted, BOOKING_STATUS } from '../../core/booking.js';
 import { isValidCoords } from '../../core/geo.js';
 import { el } from '../dom.js';
 import { VEHICLE_LABELS, formatCo2, formatDistance } from '../format.js';
@@ -10,6 +10,7 @@ import { LOCAL_DRIVER_ID } from '../session.js';
 import { tripSummary } from '../components/tripSummary.js';
 import { createPlaceInput } from '../components/placeInput.js';
 import { createItineraryPanel } from './itineraryPanel.js';
+import { driverNav } from './driverNav.js';
 import { createCo2EstimatePanel } from './co2EstimatePanel.js';
 
 const DEFAULT_VEHICLE = 'electric';
@@ -60,12 +61,19 @@ function renderTripList(container, trips, bookings, ors) {
         const tripBookings = bookings.filter(b => b.tripId === trip.id && b.status === BOOKING_STATUS.CONFIRMED);
         const booked = seatsBooked(trip.id, bookings);
         const avoided = tripBookings.reduce((sum, booking) => sum + co2AvoidedForBooking(trip, booking), 0);
+        const departed = hasDeparted(trip, new Date());
+        const state = trip.completedAt
+            ? el('span', { class: 'status-badge status-validated', text: 'Effectué ✓' })
+            : departed
+                ? el('a', { href: '#/conducteur/credits', text: 'Parti : à confirmer pour vos crédits →' })
+                : null;
         const item = el('li', { class: 'trip-item' }, tripSummary(trip,
+            ...(state ? [state] : []),
             el('span', { text: `Places réservées : ${booked}/${trip.seats}` }),
             el('span', { class: 'hint', text: `CO₂ évité avec les passagers actuels : ${formatCo2(avoided)}`
                 + ` · jusqu’à ${formatCo2(co2AvoidedForTrip({ ...trip, passengers: trip.seats }))} si complet` })));
         // Itinéraire optimisé par VROOM : nécessite ORS, des coordonnées et au moins une réservation.
-        if (ors && tripBookings.length > 0 && isValidCoords(trip.originCoords) && isValidCoords(trip.destinationCoords)) {
+        if (ors && !departed && tripBookings.length > 0 && isValidCoords(trip.originCoords) && isValidCoords(trip.destinationCoords)) {
             item.append(createItineraryPanel({ trip, bookings: tripBookings, ors }));
         }
         return item;
@@ -179,6 +187,7 @@ export function render(root, { tripRepository, bookingRepository, ors }) {
     });
 
     root.append(
+        driverNav('/conducteur/publier'),
         el('section', { class: 'card' },
             el('h2', { text: 'Publier un trajet' }),
             el('div', { class: 'publish-layout' }, form, panel.root),
