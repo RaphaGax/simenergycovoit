@@ -54,6 +54,14 @@ Application de covoiturage basée sur l'algorithme VROOM.
 - Itinéraire conducteur : problème VROOM construit et lu dans `src/core/vroom/`, appelé par le serveur
   (`POST /api/trips/:id/itinerary`) à partir des réservations confirmées en base.
 
+## Navigation Waze
+- Simple lien officiel Waze Deep Link (`https://waze.com/ul`), construit dans `src/core/navigation.js`,
+  affiché par `src/ui/components/wazeButton.js`. Aucun SDK, aucune clé, aucune donnée ne revient de Waze.
+- EcoVroom stocke `[longitude, latitude]` ; Waze attend `ll=latitude,longitude` : ne jamais inverser.
+- Sans coordonnées fiables : recherche `q=` par adresse ; sans destination : message, jamais de lieu inventé.
+- Conducteur : arrivée du trajet (tant qu'il n'est pas « effectué ») ; passager : point de rendez-vous
+  (réservation confirmée, trajet pas encore parti).
+
 ## Commandes
 - Tests : `npm test` (exécutant de tests intégré à Node, Node 22.13+). Les tests serveur
   (`tests/server/`) démarrent un vrai serveur sur une base en mémoire.

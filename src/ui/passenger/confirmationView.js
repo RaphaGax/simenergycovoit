@@ -1,5 +1,7 @@
 // Parcours Passager — confirmation de réservation, avec annulation possible avant le départ.
-import { canCancel, BOOKING_STATUS } from '../../core/booking.js';
+import { canCancel, hasDeparted, BOOKING_STATUS } from '../../core/booking.js';
+import { passengerMeetingPoint } from '../../core/navigation.js';
+import { createWazeButton } from '../components/wazeButton.js';
 import { co2AvoidedForBooking } from '../../core/co2.js';
 import { el } from '../dom.js';
 import { formatCo2, formatDateTime } from '../format.js';
@@ -42,6 +44,11 @@ export async function render(root, context, { params }) {
         el('h2', { text: isPassenger ? 'Votre réservation' : 'Réservation d’un passager' }),
         tripSummary(trip),
         details(booking, trip));
+
+    // Navigation vers le point de rendez-vous : réservation confirmée dont le trajet n'est pas encore parti.
+    if (isPassenger && booking.status === BOOKING_STATUS.CONFIRMED && !trip.completedAt && !hasDeparted(trip, new Date())) {
+        card.append(createWazeButton(passengerMeetingPoint(booking, trip), { purpose: 'Point de rendez-vous' }));
+    }
 
     if (isPassenger && canCancel(booking, trip, new Date())) {
         const status = el('p', { class: 'error-message', role: 'alert' });

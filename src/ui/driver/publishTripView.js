@@ -9,6 +9,8 @@ import { VEHICLE_LABELS, formatCo2, formatDistance } from '../format.js';
 import { tripSummary, plural } from '../components/tripSummary.js';
 import { createPlaceInput } from '../components/placeInput.js';
 import { createItineraryPanel } from './itineraryPanel.js';
+import { createWazeButton } from '../components/wazeButton.js';
+import { driverDestination } from '../../core/navigation.js';
 import { driverNav } from './driverNav.js';
 import { createCo2EstimatePanel } from './co2EstimatePanel.js';
 
@@ -80,6 +82,16 @@ function renderTripList(container, entries, { api, ors }) {
             ]))] : []),
             el('span', { class: 'hint', text: `CO₂ évité avec les passagers actuels : ${formatCo2(avoided)}`
                 + ` · jusqu’à ${formatCo2(co2AvoidedForTrip({ ...trip, passengers: trip.seats }))} si complet` })));
+        // Navigation vers l'arrivée tant que le trajet n'est pas marqué effectué. Waze ne gère qu'une
+        // destination : le conducteur est prévenu s'il doit d'abord prendre des passagers ailleurs.
+        if (!trip.completedAt) {
+            const waze = createWazeButton(driverDestination(trip), { purpose: 'Arrivée' });
+            const pickups = [...new Set(tripBookings.map(b => b.pickup?.label).filter(Boolean))];
+            if (pickups.length) {
+                waze.append(el('span', { class: 'hint', text: `Waze ne gère pas les étapes : passez d’abord prendre vos passagers (${pickups.join(', ')}).` }));
+            }
+            item.append(waze);
+        }
         // Itinéraire optimisé par VROOM : nécessite ORS, des coordonnées et au moins une réservation.
         if (ors && !departed && tripBookings.length > 0 && isValidCoords(trip.originCoords) && isValidCoords(trip.destinationCoords)) {
             item.append(createItineraryPanel({ trip, bookings: tripBookings, api }));

@@ -371,12 +371,17 @@
 /* Compte utilisateur */
 .account {
     display: flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
     align-items: center;
-    gap: 10px;
+    gap: 4px 10px;
     min-height: 1.6em;
     font-size: 0.9em;
     color: #4b5563;
+}
+
+.account span {
+    white-space: nowrap;
 }
 
 .account-link,
@@ -418,4 +423,29 @@
     display: flex;
     flex-direction: column;
     gap: 15px;
+}
+
+/* Navigation Waze */
+.waze-block {
+    flex-basis: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-start;
+    margin: 6px 0;
+}
+
+.waze-block .waze-button {
+    margin-top: 0;
+}
+
+.waze-button:focus-visible {
+    outline: 3px solid #93c5fd;
+    outline-offset: 2px;
+}
+
+.waze-unavailable {
+    flex-basis: 100%;
+    color: #92400e;
+    font-size: 0.9em;
 }
