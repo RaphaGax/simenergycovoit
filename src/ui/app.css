@@ -1,0 +1,51 @@
+/* Styles propres à l'application utilisateur (styles.css reste partagé avec fleet.html). */
+#app {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.app-nav {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.app-nav a,
+.button-link {
+    display: inline-block;
+    padding: 10px 18px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.app-nav a {
+    color: #1a3c5e;
+    border: 1px solid #1a3c5e;
+}
+
+.app-nav a[aria-current] {
+    background-color: #1a3c5e;
+    color: #fff;
+}
+
+.button-link {
+    background-color: #1a3c5e;
+    color: #fff;
+    margin-top: 10px;
+}
+
+.button-link:hover {
+    background-color: #2a5c8e;
+}
+
+.choice-card p,
+.placeholder {
+    color: #6b7280;
+}
+
+.placeholder {
+    margin: 10px 0;
+}

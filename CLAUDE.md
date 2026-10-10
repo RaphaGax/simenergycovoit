@@ -24,5 +24,12 @@ Application de covoiturage basée sur l'algorithme VROOM.
 - `src/ui/` (parcours utilisateurs) n'importe jamais `src/fleet/`.
 - Dépendances à sens unique : `ui → state → services → core`.
 
+## Points d'entrée
+- `index.html` → `src/main.js` : application utilisateur (routes par hash, `src/ui/router.js`).
+- `fleet.html` → `src/fleet/main.js` : simulateur de parc, non relié à l'application utilisateur.
+- Les sorties de l'ancien `script.js` sont figées dans `tests/fixtures/legacyFleetOutputs.json`.
+
 ## Commandes
 - Tests : `npm test` (exécutant de tests intégré à Node, `node --test`, Node 18+).
+- Lancer en local : `python3 -m http.server` puis http://localhost:8000/ (les modules ES ne
+  fonctionnent pas en `file://`).

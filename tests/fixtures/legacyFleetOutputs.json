@@ -1,0 +1,296 @@
+{
+  "source": "Sorties de script.js (commit 39cf9a6) capturées avant sa suppression",
+  "scenarios": [
+    {
+      "name": "valeurs par défaut",
+      "input": {
+        "totalCars": 100,
+        "percentages": {
+          "electric": 20.9,
+          "hybridPlug": 9.2,
+          "diesel": 14.1,
+          "petrol": 55.8,
+          "gas": 0,
+          "hydrogen": 0
+        }
+      },
+      "expected": {
+        "cars": {
+          "electric": 21,
+          "hybridPlug": 9,
+          "diesel": 14,
+          "petrol": 56,
+          "gas": 0,
+          "hydrogen": 0
+        },
+        "resultTypes": [
+          "electric",
+          "hybridPlug",
+          "diesel",
+          "petrol"
+        ],
+        "energy": [
+          0.17,
+          0.30000000000000004,
+          0.54,
+          0.6
+        ],
+        "co2": [
+          0,
+          50,
+          120,
+          140
+        ],
+        "nox": [
+          0,
+          0.02,
+          0.08,
+          0.06
+        ],
+        "so2": [
+          0,
+          0.01,
+          0.02,
+          0.01
+        ],
+        "userEnergy": [
+          0.6282119205298015,
+          0.31410596026490073,
+          0.2094039735099338,
+          0.15705298013245036
+        ],
+        "userCo2": [
+          132.05298013245033,
+          66.02649006622516,
+          44.01766004415011,
+          33.01324503311258
+        ],
+        "summary": {
+          "totalSeats": "302",
+          "totalUsers": "76 - 302",
+          "totalEnergy": "47.430",
+          "totalCO2": "9970.00",
+          "totalNOx": "4.660",
+          "totalSO2": "0.930"
+        }
+      }
+    },
+    {
+      "name": "parc mixte de 37 voitures",
+      "input": {
+        "totalCars": 37,
+        "percentages": {
+          "electric": 10,
+          "hybridPlug": 15,
+          "diesel": 25,
+          "petrol": 20,
+          "gas": 20,
+          "hydrogen": 10
+        }
+      },
+      "expected": {
+        "cars": {
+          "electric": 4,
+          "hybridPlug": 6,
+          "diesel": 9,
+          "petrol": 7,
+          "gas": 7,
+          "hydrogen": 4
+        },
+        "resultTypes": [
+          "electric",
+          "hybridPlug",
+          "diesel",
+          "petrol",
+          "gas",
+          "hydrogen"
+        ],
+        "energy": [
+          0.17,
+          0.30000000000000004,
+          0.54,
+          0.6,
+          0.5,
+          0.33
+        ],
+        "co2": [
+          0,
+          50,
+          120,
+          140,
+          100,
+          0
+        ],
+        "nox": [
+          0,
+          0.02,
+          0.08,
+          0.06,
+          0.03,
+          0
+        ],
+        "so2": [
+          0,
+          0.01,
+          0.02,
+          0.01,
+          0.01,
+          0
+        ],
+        "userEnergy": [
+          0.43626666666666664,
+          0.21813333333333332,
+          0.14542222222222223,
+          0.10906666666666666
+        ],
+        "userCo2": [
+          81.6,
+          40.8,
+          27.2,
+          20.4
+        ],
+        "summary": {
+          "totalSeats": "150",
+          "totalUsers": "38 - 150",
+          "totalEnergy": "16.360",
+          "totalCO2": "3060.00",
+          "totalNOx": "1.470",
+          "totalSO2": "0.380"
+        }
+      }
+    },
+    {
+      "name": "arrondi complété par l'essence",
+      "input": {
+        "totalCars": 10,
+        "percentages": {
+          "electric": 33.3,
+          "hybridPlug": 0,
+          "diesel": 33.3,
+          "petrol": 0,
+          "gas": 0,
+          "hydrogen": 33.4
+        }
+      },
+      "expected": {
+        "cars": {
+          "electric": 3,
+          "hybridPlug": 0,
+          "diesel": 3,
+          "petrol": 1,
+          "gas": 0,
+          "hydrogen": 3
+        },
+        "resultTypes": [
+          "electric",
+          "diesel",
+          "petrol",
+          "hydrogen"
+        ],
+        "energy": [
+          0.17,
+          0.54,
+          0.6,
+          0.33
+        ],
+        "co2": [
+          0,
+          120,
+          140,
+          0
+        ],
+        "nox": [
+          0,
+          0.08,
+          0.06,
+          0
+        ],
+        "so2": [
+          0,
+          0.02,
+          0.01,
+          0
+        ],
+        "userEnergy": [
+          0.36292682926829267,
+          0.18146341463414634,
+          0.12097560975609756,
+          0.09073170731707317
+        ],
+        "userCo2": [
+          48.78048780487805,
+          24.390243902439025,
+          16.260162601626018,
+          12.195121951219512
+        ],
+        "summary": {
+          "totalSeats": "41",
+          "totalUsers": "10 - 41",
+          "totalEnergy": "3.720",
+          "totalCO2": "500.00",
+          "totalNOx": "0.300",
+          "totalSO2": "0.070"
+        }
+      }
+    },
+    {
+      "name": "100 % électrique",
+      "input": {
+        "totalCars": 5,
+        "percentages": {
+          "electric": 100,
+          "hybridPlug": 0,
+          "diesel": 0,
+          "petrol": 0,
+          "gas": 0,
+          "hydrogen": 0
+        }
+      },
+      "expected": {
+        "cars": {
+          "electric": 5,
+          "hybridPlug": 0,
+          "diesel": 0,
+          "petrol": 0,
+          "gas": 0,
+          "hydrogen": 0
+        },
+        "resultTypes": [
+          "electric"
+        ],
+        "energy": [
+          0.17
+        ],
+        "co2": [
+          0
+        ],
+        "nox": [
+          0
+        ],
+        "so2": [
+          0
+        ],
+        "userEnergy": [
+          0.17,
+          0.085,
+          0.05666666666666667,
+          0.0425
+        ],
+        "userCo2": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "summary": {
+          "totalSeats": "20",
+          "totalUsers": "5 - 20",
+          "totalEnergy": "0.850",
+          "totalCO2": "0.00",
+          "totalNOx": "0.000",
+          "totalSO2": "0.000"
+        }
+      }
+    }
+  ]
+}
