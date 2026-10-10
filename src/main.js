@@ -2,6 +2,8 @@
 import { startRouter } from './ui/router.js';
 import { createTripRepository } from './services/tripRepository.js';
 import { createBookingRepository } from './services/bookingRepository.js';
+import { loadConfig } from './services/config.js';
+import { createOrsClient } from './services/orsClient.js';
 import * as homeView from './ui/homeView.js';
 import * as searchView from './ui/passenger/searchView.js';
 import * as bookingView from './ui/passenger/bookingView.js';
@@ -16,12 +18,17 @@ const routes = [
     { path: '/conducteur/publier', section: 'conducteur', title: 'Publier un trajet', view: publishTripView }
 ];
 
+// Sans clé openrouteservice, ors vaut null : l'application fonctionne sans géocodage ni itinéraires.
+const config = await loadConfig();
+const ors = config.orsApiKey ? createOrsClient({ apiKey: config.orsApiKey }) : null;
+
 startRouter({
     root: document.getElementById('app'),
     routes,
     context: {
         tripRepository: createTripRepository(),
-        bookingRepository: createBookingRepository()
+        bookingRepository: createBookingRepository(),
+        ors
     },
     onNavigate: route => {
         document.title = `${route.title} — EcoVroom`;

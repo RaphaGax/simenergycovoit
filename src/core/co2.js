@@ -42,6 +42,17 @@ export function co2AvoidedForTrip({ distanceKm, vehicleType, passengers, detourK
     return Math.max(0, avoided - detour);
 }
 
+// CO₂ évité par une réservation : sur la distance réelle du passager quand elle est connue
+// (recherche par itinéraire), sinon sur toute la distance du trajet ; le détour est déduit.
+export function co2AvoidedForBooking(trip, { seats, passengerDistanceKm, detourKm = 0 }) {
+    return co2AvoidedForTrip({
+        distanceKm: passengerDistanceKm ?? trip.distanceKm,
+        vehicleType: trip.vehicleType,
+        passengers: seats,
+        detourKm
+    });
+}
+
 // Estimation pour chaque nombre de passagers possible, de 1 à seats.
 export function co2AvoidedBySeatsFilled({ distanceKm, vehicleType, seats, detourKm = 0 }) {
     return Array.from({ length: seats }, (_, index) => {

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { estimateTripCo2, perOccupant, co2AvoidedForTrip, co2AvoidedBySeatsFilled } from '../../src/core/co2.js';
+import { estimateTripCo2, perOccupant, co2AvoidedForTrip, co2AvoidedBySeatsFilled, co2AvoidedForBooking } from '../../src/core/co2.js';
 
 test('estimateTripCo2 : distance × facteur du véhicule', () => {
     assert.equal(estimateTripCo2({ distanceKm: 100, vehicleType: 'diesel' }), 12000);
@@ -41,4 +41,10 @@ test('co2AvoidedBySeatsFilled : une ligne par nombre de passagers', () => {
         { passengers: 2, co2AvoidedG: 2800 },
         { passengers: 3, co2AvoidedG: 4200 }
     ]);
+});
+
+test('co2AvoidedForBooking : distance du passager si connue, sinon celle du trajet ; détour déduit', () => {
+    const trip = { distanceKm: 60, vehicleType: 'diesel' };
+    assert.equal(co2AvoidedForBooking(trip, { seats: 2 }), 2 * 60 * 140);
+    assert.equal(co2AvoidedForBooking(trip, { seats: 1, passengerDistanceKm: 25, detourKm: 2 }), 25 * 140 - 2 * 120);
 });

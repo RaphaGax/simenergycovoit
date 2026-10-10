@@ -40,6 +40,8 @@ test('createTrip normalise le trajet et refuse un brouillon invalide', () => {
         driverId: 'd1',
         origin: 'Lausanne',
         destination: 'Genève',
+        originCoords: null,
+        destinationCoords: null,
         departureAt: '2026-10-11T08:00:00.000Z',
         distanceKm: 62.5,
         seats: 3,
@@ -47,4 +49,12 @@ test('createTrip normalise le trajet et refuse un brouillon invalide', () => {
         createdAt: '2026-10-10T12:00:00.000Z'
     });
     assert.throws(() => createTrip({ ...draft, seats: 0 }, { id: 'x', driverId: 'd1', now }), RangeError);
+});
+
+test('coordonnées facultatives, mais refusées si invalides', () => {
+    const withCoords = { ...draft, originCoords: [6.6291, 46.5167], destinationCoords: [6.1423, 46.2102] };
+    assert.equal(validateTrip(withCoords, { now }).valid, true);
+    assert.deepEqual(createTrip(withCoords, { id: 't', driverId: 'd', now }).originCoords, [6.6291, 46.5167]);
+    assert.ok(validateTrip({ ...draft, originCoords: [6.6] }, { now }).errors.origin);
+    assert.ok(validateTrip({ ...draft, destinationCoords: ['a', 'b'] }, { now }).errors.destination);
 });

@@ -1,5 +1,7 @@
 // Réservations des passagers. Le trajet est toujours gratuit pour le passager (0 CHF).
 // Fonctions pures : l'identifiant, la référence et la date courante sont fournis par l'appelant.
+import { isValidCoords } from './geo.js';
+
 export const PASSENGER_PRICE_CHF = 0;
 
 export const BOOKING_STATUS = Object.freeze({
@@ -35,7 +37,22 @@ export function bookingRefusal({ trip, bookings, passengerId, seats }, { now }) 
     return null;
 }
 
-export function createBooking({ trip, bookings, passengerId, seats }, { id, reference, now }) {
+// Points de prise en charge et de dépose facultatifs ({ label, coords }), issus de la recherche
+// par itinéraire, avec la distance du passager et le détour du conducteur calculés par ORS.
+function routeDetails({ pickup, dropoff, passengerDistanceKm, detourKm }) {
+    if (pickup == null && dropoff == null) return {};
+    for (const point of [pickup, dropoff]) {
+        if (!point || !String(point.label ?? '').trim() || !isValidCoords(point.coords)) {
+            throw new RangeError('Points de prise en charge et de dépose invalides.');
+        }
+    }
+    for (const value of [passengerDistanceKm, detourKm]) {
+        if (!(Number.isFinite(value) && value >= 0)) throw new RangeError('Distance de trajet invalide.');
+    }
+    return { pickup, dropoff, passengerDistanceKm, detourKm };
+}
+
+export function createBooking({ trip, bookings, passengerId, seats, route = {} }, { id, reference, now }) {
     const refusal = bookingRefusal({ trip, bookings, passengerId, seats }, { now });
     if (refusal) throw new RangeError(refusal);
     return {
@@ -44,6 +61,7 @@ export function createBooking({ trip, bookings, passengerId, seats }, { id, refe
         tripId: trip.id,
         passengerId,
         seats,
+        ...routeDetails(route),
         priceChf: PASSENGER_PRICE_CHF,
         status: BOOKING_STATUS.CONFIRMED,
         createdAt: now.toISOString()

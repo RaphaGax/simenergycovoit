@@ -1,6 +1,7 @@
 // Trajets publiés par les conducteurs : validation et création. Fonctions pures
 // (l'identifiant et la date courante sont fournis par l'appelant).
 import { VEHICLE_PROFILES } from './emissionFactors.js';
+import { isValidCoords } from './geo.js';
 
 export const MAX_SEATS = 8;
 export const MAX_DISTANCE_KM = 2000;
@@ -29,6 +30,10 @@ export function validateTrip(draft, { now = new Date() } = {}) {
     }
     if (!VEHICLE_PROFILES[draft.vehicleType]) errors.vehicleType = 'Choisissez une motorisation.';
 
+    // Coordonnées facultatives (lieu choisi dans les suggestions), mais valides si présentes.
+    if (draft.originCoords != null && !isValidCoords(draft.originCoords)) errors.origin = 'Lieu de départ invalide.';
+    if (draft.destinationCoords != null && !isValidCoords(draft.destinationCoords)) errors.destination = "Lieu d'arrivée invalide.";
+
     return { valid: Object.keys(errors).length === 0, errors };
 }
 
@@ -40,6 +45,8 @@ export function createTrip(draft, { id, driverId, now = new Date() }) {
         driverId,
         origin: draft.origin.trim(),
         destination: draft.destination.trim(),
+        originCoords: draft.originCoords ?? null,
+        destinationCoords: draft.destinationCoords ?? null,
         departureAt: new Date(draft.departureAt).toISOString(),
         distanceKm: draft.distanceKm,
         seats: draft.seats,

@@ -53,3 +53,21 @@ test('annulation possible avant le départ, une seule fois', () => {
     assert.throws(() => cancelBooking(cancelled, trip, { now }), RangeError);
     assert.throws(() => cancelBooking(booking, trip, { now: new Date('2026-10-11T09:00:00Z') }), RangeError);
 });
+
+test('réservation avec points de prise en charge et de dépose (recherche par itinéraire)', () => {
+    const route = {
+        pickup: { label: 'Morges', coords: [6.4983, 46.5113] },
+        dropoff: { label: 'Nyon', coords: [6.2393, 46.3833] },
+        passengerDistanceKm: 25,
+        detourKm: 1.5
+    };
+    const booking = createBooking({ trip, bookings: [], passengerId: 'p1', seats: 1, route }, ids(1));
+    assert.deepEqual(booking.pickup, route.pickup);
+    assert.equal(booking.passengerDistanceKm, 25);
+    assert.equal(booking.priceChf, 0);
+
+    const base = { trip, bookings: [], passengerId: 'p1', seats: 1 };
+    assert.throws(() => createBooking({ ...base, route: { ...route, dropoff: null } }, ids(2)), RangeError);
+    assert.throws(() => createBooking({ ...base, route: { ...route, pickup: { label: 'X', coords: [500, 0] } } }, ids(3)), RangeError);
+    assert.throws(() => createBooking({ ...base, route: { ...route, detourKm: -1 } }, ids(4)), RangeError);
+});

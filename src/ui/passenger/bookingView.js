@@ -1,16 +1,31 @@
 // Parcours Passager — récapitulatif et réservation gratuite (0 CHF).
 import { bookingRefusal, createBooking, seatsLeft, PASSENGER_PRICE_CHF } from '../../core/booking.js';
-import { co2AvoidedForTrip } from '../../core/co2.js';
+import { co2AvoidedForBooking } from '../../core/co2.js';
 import { el } from '../dom.js';
 import { navigate } from '../router.js';
-import { formatCo2 } from '../format.js';
+import { formatCo2, formatDistance } from '../format.js';
 import { LOCAL_PASSENGER_ID, newBookingIds } from '../session.js';
 import { tripSummary, plural } from '../components/tripSummary.js';
+import { paramToCoords } from '../components/placeInput.js';
 
 const backLink = () => el('a', { href: '#/passager/recherche', text: '← Retour à la recherche' });
 
+// Points et distances transmis par la recherche par itinéraire, ou {} s'ils sont absents ou incomplets.
+function routeFromQuery(query) {
+    const route = {
+        pickup: { label: query.pl ?? '', coords: paramToCoords(query.p) },
+        dropoff: { label: query.dl ?? '', coords: paramToCoords(query.d) },
+        passengerDistanceKm: Number(query.pkm),
+        detourKm: Number(query.dkm)
+    };
+    const complete = route.pickup.label && route.pickup.coords && route.dropoff.label && route.dropoff.coords
+        && Number.isFinite(route.passengerDistanceKm) && Number.isFinite(route.detourKm);
+    return complete ? route : {};
+}
+
 export function render(root, { tripRepository, bookingRepository }, { params, query }) {
     const trip = tripRepository.get(params.tripId);
+    const route = routeFromQuery(query);
     const left = trip ? seatsLeft(trip, bookingRepository.list()) : 0;
     const requested = Math.min(Math.max(1, Number(query.seats) || 1), Math.max(1, left));
     const refusal = bookingRefusal(
@@ -30,7 +45,7 @@ export function render(root, { tripRepository, bookingRepository }, { params, qu
     seatsSelect.value = String(requested);
     const co2Line = el('strong');
     const updateCo2 = () => {
-        co2Line.textContent = formatCo2(co2AvoidedForTrip({ ...trip, passengers: Number(seatsSelect.value) }));
+        co2Line.textContent = formatCo2(co2AvoidedForBooking(trip, { ...route, seats: Number(seatsSelect.value) }));
     };
     seatsSelect.addEventListener('change', updateCo2);
     updateCo2();
@@ -40,6 +55,11 @@ export function render(root, { tripRepository, bookingRepository }, { params, qu
     const form = el('form', { class: 'trip-form booking-form' },
         el('div', { class: 'input-group' }, el('label', { for: 'seats', text: 'Nombre de places' }), seatsSelect),
         el('dl', { class: 'booking-recap' },
+            ...(route.pickup ? [
+                el('dt', { text: 'Prise en charge' }), el('dd', { text: route.pickup.label }),
+                el('dt', { text: 'Dépose' }), el('dd', { text: `${route.dropoff.label} (${formatDistance(route.passengerDistanceKm)})` }),
+                el('dt', { text: 'Détour conducteur' }), el('dd', { text: formatDistance(route.detourKm) })
+            ] : []),
             el('dt', { text: 'Prix' }), el('dd', {}, el('strong', { class: 'price', text: `${PASSENGER_PRICE_CHF} CHF` }), ' — gratuit pour les passagers'),
             el('dt', { text: 'CO₂ évité' }), el('dd', {}, co2Line, ' par rapport à un trajet seul en voiture')),
         status,
@@ -51,7 +71,7 @@ export function render(root, { tripRepository, bookingRepository }, { params, qu
         try {
             // Relecture des réservations : une autre réservation a pu prendre les places entre-temps.
             const booking = createBooking(
-                { trip, bookings: bookingRepository.list(), passengerId: LOCAL_PASSENGER_ID, seats: Number(seatsSelect.value) },
+                { trip, bookings: bookingRepository.list(), passengerId: LOCAL_PASSENGER_ID, seats: Number(seatsSelect.value), route },
                 { ...newBookingIds(), now: new Date() });
             bookingRepository.save(booking);
             navigate(`/passager/reservation/${encodeURIComponent(booking.id)}`);

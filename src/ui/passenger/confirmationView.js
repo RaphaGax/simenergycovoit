@@ -1,6 +1,6 @@
 // Parcours Passager — confirmation de réservation, avec annulation possible avant le départ.
 import { canCancel, cancelBooking, BOOKING_STATUS } from '../../core/booking.js';
-import { co2AvoidedForTrip } from '../../core/co2.js';
+import { co2AvoidedForBooking } from '../../core/co2.js';
 import { el } from '../dom.js';
 import { formatCo2, formatDateTime } from '../format.js';
 import { tripSummary, plural } from '../components/tripSummary.js';
@@ -10,10 +10,13 @@ const backLink = () => el('a', { href: '#/passager/recherche', text: '← Retour
 function details(booking, trip) {
     return el('dl', { class: 'booking-recap' },
         el('dt', { text: 'Référence' }), el('dd', {}, el('strong', { text: booking.reference })),
-        el('dt', { text: 'Rendez-vous' }), el('dd', { text: `${trip.origin}, ${formatDateTime(trip.departureAt)}` }),
+        el('dt', { text: 'Rendez-vous' }), el('dd', { text: booking.pickup
+            ? `${booking.pickup.label} (départ du conducteur : ${formatDateTime(trip.departureAt)})`
+            : `${trip.origin}, ${formatDateTime(trip.departureAt)}` }),
+        ...(booking.dropoff ? [el('dt', { text: 'Dépose' }), el('dd', { text: booking.dropoff.label })] : []),
         el('dt', { text: 'Places' }), el('dd', { text: plural(booking.seats, 'place') }),
         el('dt', { text: 'Prix' }), el('dd', {}, el('strong', { class: 'price', text: `${booking.priceChf} CHF` })),
-        el('dt', { text: 'CO₂ évité' }), el('dd', { text: formatCo2(co2AvoidedForTrip({ ...trip, passengers: booking.seats })) }));
+        el('dt', { text: 'CO₂ évité' }), el('dd', { text: formatCo2(co2AvoidedForBooking(trip, booking)) }));
 }
 
 export function render(root, { tripRepository, bookingRepository }, { params }) {

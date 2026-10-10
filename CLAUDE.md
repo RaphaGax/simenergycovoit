@@ -30,7 +30,14 @@ Application de covoiturage basée sur l'algorithme VROOM.
 - `fleet.html` → `src/fleet/main.js` : simulateur de parc, non relié à l'application utilisateur.
 - Les sorties de l'ancien `script.js` sont figées dans `tests/fixtures/legacyFleetOutputs.json`.
 
+## openrouteservice (ORS) et VROOM
+- Clé dans `src/config.local.js` (ignoré par git, modèle : `src/config.local.example.js`).
+  Ne jamais versionner de clé. Sans clé, l'application fonctionne sans géocodage ni itinéraires.
+- Appels réseau uniquement dans `src/services/orsClient.js` ; tests avec un `fetch` simulé.
+- Recherche passager : détour calculé par matrice ORS (`src/core/matching.js`), avec repli par nom de lieu.
+- Itinéraire conducteur : problème VROOM construit et lu dans `src/core/vroom/` (ORS `/optimization`).
+
 ## Commandes
-- Tests : `npm test` (exécutant de tests intégré à Node, `node --test`, Node 18+).
+- Tests : `npm test` (exécutant de tests intégré à Node, `node --test`, Node 20+).
 - Lancer en local : `python3 -m http.server` puis http://localhost:8000/ (les modules ES ne
   fonctionnent pas en `file://`).

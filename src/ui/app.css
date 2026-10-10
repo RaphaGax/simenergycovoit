@@ -223,3 +223,50 @@
 .button-secondary:hover {
     background-color: #fef2f2;
 }
+
+/* Itinéraires (openrouteservice / VROOM) */
+.place-hint:empty {
+    display: none;
+}
+
+.notice {
+    background-color: #eff6ff;
+    color: #1e40af;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin: 10px 0;
+    font-size: 0.9em;
+}
+
+.detour {
+    color: #1a3c5e;
+    font-weight: 500;
+}
+
+.itinerary-panel {
+    flex-basis: 100%;
+}
+
+.button-secondary-neutral {
+    background-color: #fff;
+    color: #1a3c5e;
+    border: 1px solid #1a3c5e;
+}
+
+.button-secondary-neutral:hover {
+    background-color: #eff6ff;
+}
+
+.stop-list {
+    margin: 10px 0 0 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.stop-time {
+    display: inline-block;
+    min-width: 3.5em;
+    font-weight: 700;
+    color: #1a3c5e;
+}
