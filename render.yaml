@@ -20,6 +20,11 @@ services:
       # Render sert le site en HTTPS : cookie de session réservé à HTTPS.
       - key: COOKIE_SECURE
         value: "1"
+      # Render place un proxy devant le serveur : l'adresse du visiteur est la dernière ajoutée
+      # dans X-Forwarded-For. Sans ce réglage, tous les visiteurs partageraient la même limite
+      # de connexions. Pour vérifier : DEBUG_CLIENT_IP=1 quelques minutes, puis lire les journaux.
+      - key: TRUST_PROXY_HOPS
+        value: "1"
       # Clé openrouteservice, demandée par Render à la création (facultative).
       - key: ORS_API_KEY
         sync: false

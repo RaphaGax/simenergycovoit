@@ -46,6 +46,22 @@ export function parseCookies(header = '') {
     return cookies;
 }
 
+// Adresse IP du visiteur. Derrière un hébergeur (Render…), la connexion vient du proxy :
+// chaque proxy de confiance ajoute à la FIN de X-Forwarded-For l'adresse qui l'a contacté.
+// On remonte donc de `trustedHops` positions depuis la fin de [X-Forwarded-For…, adresse du socket].
+// Les valeurs placées plus à gauche viennent du visiteur lui-même et ne sont jamais crues.
+// trustedHops = 0 (par défaut) : X-Forwarded-For est ignoré.
+export function clientIp(req, trustedHops = 0) {
+    const socketIp = req.socket?.remoteAddress ?? 'inconnu';
+    if (!(Number.isInteger(trustedHops) && trustedHops > 0)) return socketIp;
+    const forwarded = String(req.headers['x-forwarded-for'] ?? '')
+        .split(',')
+        .map(part => part.trim())
+        .filter(Boolean);
+    const chain = [...forwarded, socketIp];
+    return chain[Math.max(0, chain.length - 1 - trustedHops)];
+}
+
 export function serializeCookie(name, value, { maxAge, secure }) {
     return [
         `${name}=${encodeURIComponent(value)}`,

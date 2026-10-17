@@ -15,7 +15,7 @@ import { parseTripSolution } from '../src/core/vroom/parseTripSolution.js';
 import { MAX_CANDIDATES } from '../src/core/matching.js';
 import { createAuth, createRateLimiter, SESSION_COOKIE, SESSION_DAYS } from './auth.js';
 import {
-    HttpError, readJson, sendJson, parseCookies, serializeCookie, createRouter, createStaticHandler
+    HttpError, readJson, sendJson, parseCookies, serializeCookie, createRouter, createStaticHandler, clientIp
 } from './http.js';
 
 const SECURITY_HEADERS = {
@@ -56,7 +56,10 @@ export const DEFAULT_LIMITS = Object.freeze({
     orsPerUser: 120 // appels d'itinéraire par utilisateur, par minute
 });
 
-export function createApp({ db, ors = null, staticDir, secureCookies = false, now = () => new Date(), limits = {} }) {
+export function createApp({
+    db, ors = null, staticDir, secureCookies = false, trustProxyHops = 0, debugClientIp = false,
+    now = () => new Date(), limits = {}
+}) {
     const { authPerIp, loginPerEmail, orsPerUser } = { ...DEFAULT_LIMITS, ...limits };
     const auth = createAuth(db, { now });
     const serveStatic = createStaticHandler(staticDir);
@@ -361,9 +364,15 @@ export function createApp({ db, ors = null, staticDir, secureCookies = false, no
                 query: url.searchParams,
                 token,
                 user: auth.userForToken(token),
-                ip: req.socket.remoteAddress ?? 'inconnu',
+                ip: clientIp(req, trustProxyHops),
                 setCookie: cookie => cookies.push(cookie)
             };
+            // Diagnostic temporaire (DEBUG_CLIENT_IP=1) pour régler TRUST_PROXY_HOPS : journalise
+            // l'en-tête brut et l'adresse retenue, uniquement sur l'inscription et la connexion.
+            if (debugClientIp && url.pathname.startsWith('/api/auth/') && req.method === 'POST') {
+                console.log(`[ip] ${url.pathname} X-Forwarded-For="${req.headers['x-forwarded-for'] ?? ''}" `
+                    + `socket=${req.socket.remoteAddress} → retenue=${ctx.ip} (TRUST_PROXY_HOPS=${trustProxyHops})`);
+            }
             const result = await found.handler(ctx);
             const { status = 200, body = result } = result && 'status' in result && 'body' in result ? result : {};
             sendJson(res, status, body, { ...extraHeaders, ...(cookies.length ? { 'Set-Cookie': cookies } : {}) });

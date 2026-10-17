@@ -21,6 +21,8 @@ Variables d'environnement du serveur :
 | `DATABASE_PATH` | Fichier SQLite | `data/ecovroom.db` |
 | `ORS_API_KEY` | Clé openrouteservice (suggestions de lieux, distances, itinéraires) | absente : fonctions désactivées |
 | `COOKIE_SECURE` | `1` pour réserver le cookie de session à HTTPS (obligatoire en production) | absent |
+| `TRUST_PROXY_HOPS` | Nombre de proxys de confiance devant le serveur (`1` sur Render), pour limiter les tentatives de connexion par visiteur | `0` : adresse de la connexion |
+| `DEBUG_CLIENT_IP` | `1` pour journaliser temporairement les adresses lors des connexions (réglage de `TRUST_PROXY_HOPS`) | absent |
 
 Exemple : `ORS_API_KEY=… npm start`.
 

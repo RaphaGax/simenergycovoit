@@ -151,6 +151,43 @@ test('limites : trop de tentatives sur un même compte ou depuis une même adres
     }
 });
 
+test('derrière un proxy (TRUST_PROXY_HOPS=1) : limite par visiteur, adresse falsifiée ignorée', async () => {
+    const limited = createServer(createApp({ db, staticDir: ROOT, now: () => clock, trustProxyHops: 1, limits: { authPerIp: 2 } }));
+    await new Promise(resolve => limited.listen(0, resolve));
+    // Ce test joue le rôle du proxy : il ajoute l'adresse du visiteur à la fin de l'en-tête.
+    const login = (forwardedFor, i) => fetch(`http://localhost:${limited.address().port}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': forwardedFor },
+        body: JSON.stringify({ email: `proxy${i}@example.ch`, password: 'x' })
+    }).then(res => res.status);
+    try {
+        const alice = [await login('203.0.113.1', 1), await login('203.0.113.1', 2), await login('203.0.113.1', 3)];
+        assert.deepEqual(alice, [401, 401, 429]);
+        // Un autre visiteur derrière le même proxy n'est pas bloqué par les essais d'Alice.
+        assert.equal(await login('203.0.113.2', 4), 401);
+        // Alice ne contourne pas la limite en inventant une adresse au début de l'en-tête.
+        assert.equal(await login('9.9.9.9, 203.0.113.1', 5), 429);
+    } finally {
+        limited.close();
+    }
+});
+
+test('sans proxy de confiance : X-Forwarded-For ne permet pas de contourner la limite', async () => {
+    const limited = createServer(createApp({ db, staticDir: ROOT, now: () => clock, limits: { authPerIp: 2 } }));
+    await new Promise(resolve => limited.listen(0, resolve));
+    const login = (forwardedFor, i) => fetch(`http://localhost:${limited.address().port}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': forwardedFor },
+        body: JSON.stringify({ email: `direct${i}@example.ch`, password: 'x' })
+    }).then(res => res.status);
+    try {
+        const statuses = [await login('1.1.1.1', 1), await login('2.2.2.2', 2), await login('3.3.3.3', 3)];
+        assert.deepEqual(statuses, [401, 401, 429]);
+    } finally {
+        limited.close();
+    }
+});
+
 test('connexion : trop de tentatives sur un même compte → 429', async () => {
     const alex = await newUser();
     const c = client();

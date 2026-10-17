@@ -34,6 +34,9 @@ Application de covoiturage basée sur l'algorithme VROOM.
   HttpOnly SameSite=Lax, seule son empreinte SHA-256 est en base (`server/auth.js`).
 - Écritures (`POST`) : corps JSON obligatoire et origine vérifiée (protection CSRF).
 - Réservation : lecture des places et écriture dans une même transaction (pas de surréservation).
+- Adresse du visiteur (limites de tentatives) : `clientIp()` dans `server/http.js`. Ne jamais lire
+  `X-Forwarded-For` depuis la gauche (valeur falsifiable) ; seulement `TRUST_PROXY_HOPS` positions
+  depuis la fin. 0 par défaut (en-tête ignoré), 1 sur Render.
 - Ne jamais renvoyer l'e-mail d'un autre utilisateur : seulement son prénom (`driverName`, `passengerName`).
 - Une réservation n'est visible que par son passager et par le conducteur du trajet (404 sinon).
 
@@ -66,4 +69,4 @@ Application de covoiturage basée sur l'algorithme VROOM.
 - Tests : `npm test` (exécutant de tests intégré à Node, Node 22.13+). Les tests serveur
   (`tests/server/`) démarrent un vrai serveur sur une base en mémoire.
 - Lancer en local : `npm start` puis http://localhost:8000/ (variables : `PORT`, `DATABASE_PATH`,
-  `ORS_API_KEY`, `COOKIE_SECURE=1` en production derrière HTTPS).
+  `ORS_API_KEY`, `COOKIE_SECURE=1` en production derrière HTTPS, `TRUST_PROXY_HOPS`).
