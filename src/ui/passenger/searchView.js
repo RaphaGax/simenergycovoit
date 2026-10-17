@@ -6,6 +6,7 @@ import { validateSearch } from '../../core/search.js';
 import { preselectCandidates, matrixLocations, rankByDetour, MAX_DETOUR_MIN } from '../../core/matching.js';
 import { co2AvoidedForBooking } from '../../core/co2.js';
 import { BOOKING_STATUS, hasDeparted } from '../../core/booking.js';
+import { canRecordProof } from '../../core/tripProof.js';
 import { MAX_SEATS } from '../../core/trips.js';
 import { el } from '../dom.js';
 import { navigate, loginPath } from '../router.js';
@@ -105,20 +106,31 @@ async function searchAlongRoute(available, criteria, ors) {
 }
 
 function myBookingsSection(entries) {
-    const mine = entries
-        .filter(({ booking, trip }) => trip && booking.status === BOOKING_STATUS.CONFIRMED && !hasDeparted(trip, new Date()))
-        .sort((a, b) => a.trip.departureAt.localeCompare(b.trip.departureAt));
+    const now = new Date();
+    const byDeparture = (a, b) => a.trip.departureAt.localeCompare(b.trip.departureAt);
+    const active = entries.filter(({ booking, trip }) => trip && booking.status === BOOKING_STATUS.CONFIRMED);
+    const upcoming = active.filter(({ trip }) => !hasDeparted(trip, now)).sort(byDeparture);
+    // Trajets passés en attente de la réponse du passager (« Le trajet a-t-il eu lieu ? »).
+    const toConfirm = active.filter(({ booking, trip }) => canRecordProof(booking, trip, now)).sort(byDeparture);
 
-    const section = el('section', { class: 'card' }, el('h2', { text: 'Mes réservations' }));
-    if (mine.length === 0) {
-        section.append(el('p', { class: 'placeholder', text: 'Aucune réservation à venir.' }));
-        return section;
-    }
-    section.append(el('ul', { class: 'trip-list' }, ...mine.map(({ booking, trip }) => el('li', { class: 'trip-item' },
+    const item = ({ booking, trip }, linkText) => el('li', { class: 'trip-item' },
         tripSummary(trip, el('span', { text: `${plural(booking.seats, 'place')} · réf. ${booking.reference}` })),
         el('div', { class: 'trip-actions' },
-            el('a', { href: `#/passager/reservation/${encodeURIComponent(booking.id)}`, text: 'Voir la réservation' }))
-    ))));
+            el('a', { href: `#/passager/reservation/${encodeURIComponent(booking.id)}`, text: linkText })));
+
+    const section = el('section', { class: 'card' }, el('h2', { text: 'Mes réservations' }));
+    if (toConfirm.length) {
+        section.append(
+            el('h3', { text: 'Trajets à confirmer' }),
+            el('p', { class: 'hint', text: 'Indiquez si ces trajets ont bien eu lieu : votre réponse permet au conducteur d’obtenir ses crédits carbone.' }),
+            el('ul', { class: 'trip-list' }, ...toConfirm.map(entry => item(entry, 'Répondre'))));
+    }
+    if (upcoming.length) {
+        if (toConfirm.length) section.append(el('h3', { text: 'À venir' }));
+        section.append(el('ul', { class: 'trip-list' }, ...upcoming.map(entry => item(entry, 'Voir la réservation'))));
+    } else if (!toConfirm.length) {
+        section.append(el('p', { class: 'placeholder', text: 'Aucune réservation à venir.' }));
+    }
     return section;
 }
 

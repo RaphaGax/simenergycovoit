@@ -44,7 +44,8 @@ function authForm({ prefix, title, submitLabel, fields, onSubmit }) {
 export function render(root, { api, user }, { query }) {
     const returnTo = safeReturn(query.retour);
     const done = () => {
-        window.location.hash = `#${returnTo}`;
+        // replaceState ne déclenche pas hashchange : pas d'affichage éphémère avant le rechargement.
+        history.replaceState(null, '', `#${returnTo}`);
         window.location.reload();
     };
 

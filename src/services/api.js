@@ -40,6 +40,8 @@ export function createApi({ fetch = globalThis.fetch.bind(globalThis), baseUrl =
         if (!response.ok) {
             throw new ApiError(data?.error ?? `Erreur ${response.status}.`, { status: response.status, fields: data?.fields });
         }
+        // Réponse « réussie » mais illisible (coupée, vide) : erreur claire plutôt qu'un null inattendu.
+        if (data === null) throw new ApiError('Réponse du serveur illisible. Réessayez.', { status: response.status });
         return data;
     }
 
@@ -69,6 +71,8 @@ export function createApi({ fetch = globalThis.fetch.bind(globalThis), baseUrl =
             create: input => post('/api/bookings', input),
             get: bookingId => get(`/api/bookings/${id(bookingId)}`),
             cancel: bookingId => post(`/api/bookings/${id(bookingId)}/cancel`),
+            // answer : 'confirmed' (« J'ai voyagé ») ou 'disputed' (« Le trajet n'a pas eu lieu »)
+            proof: (bookingId, answer) => post(`/api/bookings/${id(bookingId)}/proof`, { answer }),
             // [{ booking, trip }]
             mine: async () => (await get('/api/me/bookings')).bookings
         },

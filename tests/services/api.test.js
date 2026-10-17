@@ -56,3 +56,8 @@ test('proxy ORS : même interface que le client ORS direct', async () => {
     await api.ors.matrix([[6, 46], [7, 46]]);
     assert.deepEqual(calls[1].body, { locations: [[6, 46], [7, 46]] });
 });
+
+test('réponse réussie mais illisible : erreur claire, jamais null', async () => {
+    const api = createApi({ fetch: fakeFetch(() => ({ status: 200 })).fetch });
+    await assert.rejects(api.trips.search({}), err => err instanceof ApiError && /illisible/.test(err.message));
+});

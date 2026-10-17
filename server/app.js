@@ -7,7 +7,8 @@ import { searchTrips, validateSearch } from '../src/core/search.js';
 import {
     bookingRefusal, createBooking, cancelBooking, BOOKING_STATUS
 } from '../src/core/booking.js';
-import { completeTrip } from '../src/core/tripCompletion.js';
+import { completeTrip, refreshCreditEntry, isSubmittable } from '../src/core/tripCompletion.js';
+import { recordPassengerProof, summarizeProof } from '../src/core/tripProof.js';
 import { submitForValidation } from '../src/core/carbonCredits.js';
 import { isValidCoords } from '../src/core/geo.js';
 import { buildTripProblem } from '../src/core/vroom/buildTripProblem.js';
@@ -83,6 +84,12 @@ export function createApp({
             seatsLeft: Math.max(0, trip.seats - (seats.get(trip.id) ?? 0)),
             driverName: names.get(trip.driverId) ?? ''
         }));
+    }
+
+    // État des réponses des passagers du trajet d'une entrée de crédits.
+    function proofOf(entry) {
+        const trip = db.trips.get(entry.tripId);
+        return summarizeProof(trip, db.bookings.byTrip(trip.id), now());
     }
 
     function ownTrip(ctx, tripId) {
@@ -274,6 +281,29 @@ export function createApp({
             });
         }],
 
+        // Confirmation du trajet par le passager (« J'ai voyagé » / « Le trajet n'a pas eu lieu »).
+        ['POST', '/api/bookings/:id/proof', async ctx => {
+            const body = await readJson(ctx.req);
+            const user = requireUser(ctx);
+            return db.transaction(() => {
+                const booking = db.bookings.get(ctx.params.id);
+                if (!booking || booking.passengerId !== user.id) throw new HttpError(404, 'Réservation introuvable.');
+                const trip = db.trips.get(booking.tripId);
+                let answered;
+                try {
+                    answered = recordPassengerProof(booking, trip, { answer: body.answer, now: now() });
+                } catch (error) {
+                    if (error instanceof TypeError) throw new HttpError(400, error.message);
+                    throw businessError(error, 409);
+                }
+                db.bookings.setProof(booking.id, answered.passengerProof, answered.passengerProofAt);
+                // Le trajet déjà confirmé par le conducteur : ses crédits estimés suivent la réponse.
+                const entry = db.credits.byTrip(trip.id);
+                if (entry) db.credits.upsert(refreshCreditEntry(entry, { trip, bookings: db.bookings.byTrip(trip.id) }));
+                return { booking: answered, trip };
+            });
+        }],
+
         // Espace personnel
         ['GET', '/api/me/bookings', ctx => {
             const user = requireUser(ctx);
@@ -297,13 +327,17 @@ export function createApp({
         }],
         ['GET', '/api/me/credits', ctx => {
             const user = requireUser(ctx);
-            return { entries: db.credits.byDriver(user.id) };
+            return { entries: db.credits.byDriver(user.id).map(entry => ({ ...entry, proof: proofOf(entry) })) };
         }],
         ['POST', '/api/me/credits/submit', async ctx => {
             await readJson(ctx.req);
             const user = requireUser(ctx);
             return db.transaction(() => {
-                const submitted = submitForValidation(db.credits.byDriver(user.id), { now: now() });
+                // Seules les entrées dont les passagers ont répondu (ou dont le délai est passé) partent.
+                const submitted = submitForValidation(db.credits.byDriver(user.id), {
+                    now: now(),
+                    canSubmit: entry => isSubmittable(entry, proofOf(entry))
+                });
                 submitted.forEach(entry => db.credits.upsert(entry));
                 return { submitted };
             });

@@ -288,30 +288,102 @@ test('réservation : visible par le passager et le conducteur seulement ; annula
 
 test('trajet effectué et crédits : conducteur seul, après le départ, une fois ; soumission', async () => {
     clock = new Date('2026-10-10T12:00:00Z');
-    const driver = await newUser('Dana');
-    const { json: { trip } } = await driver.post('/api/trips', tripDraft());
-    const passenger = await newUser('Pia');
-    await passenger.post('/api/bookings', { tripId: trip.id, seats: 2 });
+    try {
+        const driver = await newUser('Dana');
+        const { json: { trip } } = await driver.post('/api/trips', tripDraft());
+        const passenger = await newUser('Pia');
+        const { json: { booking } } = await passenger.post('/api/bookings', { tripId: trip.id, seats: 2 });
 
-    assert.equal((await driver.post(`/api/trips/${trip.id}/complete`)).status, 409); // pas encore parti
-    clock = new Date('2026-10-11T10:00:00Z');
-    assert.equal((await passenger.post(`/api/trips/${trip.id}/complete`)).status, 404);
+        assert.equal((await driver.post(`/api/trips/${trip.id}/complete`)).status, 409); // pas encore parti
+        clock = new Date('2026-10-11T10:00:00Z');
+        assert.equal((await passenger.post(`/api/trips/${trip.id}/complete`)).status, 404);
 
-    const done = await driver.post(`/api/trips/${trip.id}/complete`);
-    assert.equal(done.status, 200);
-    assert.equal(done.json.creditEntry.co2AvoidedG, 2 * 62.5 * 140);
-    assert.equal(done.json.trip.completedAt, '2026-10-11T10:00:00.000Z');
-    assert.equal((await driver.post(`/api/trips/${trip.id}/complete`)).status, 409);
+        const done = await driver.post(`/api/trips/${trip.id}/complete`);
+        assert.equal(done.status, 200);
+        assert.equal(done.json.creditEntry.co2AvoidedG, 0); // en attente de la passagère
+        assert.equal(done.json.trip.completedAt, '2026-10-11T10:00:00.000Z');
+        assert.equal((await driver.post(`/api/trips/${trip.id}/complete`)).status, 409);
 
-    const credits = await driver.get('/api/me/credits');
-    assert.deepEqual(credits.json.entries.map(e => [e.tripId, e.status]), [[trip.id, 'estimated']]);
-    assert.deepEqual((await passenger.get('/api/me/credits')).json.entries, []);
+        let credits = await driver.get('/api/me/credits');
+        assert.deepEqual(credits.json.entries.map(e => [e.tripId, e.status]), [[trip.id, 'estimated']]);
+        assert.deepEqual(credits.json.entries[0].proof, {
+            confirmedSeats: 0, disputedSeats: 0, pendingSeats: 2, deadline: '2026-10-18T07:30:00.000Z', closed: false
+        });
+        assert.deepEqual((await passenger.get('/api/me/credits')).json.entries, []);
+        // Rien à soumettre tant que la passagère n'a pas répondu.
+        assert.equal((await driver.post('/api/me/credits/submit')).json.submitted.length, 0);
 
-    const submitted = await driver.post('/api/me/credits/submit');
-    assert.equal(submitted.json.submitted.length, 1);
-    assert.equal((await driver.get('/api/me/credits')).json.entries[0].status, 'pending');
-    assert.equal((await driver.post('/api/me/credits/submit')).json.submitted.length, 0);
+        const proof = await passenger.post(`/api/bookings/${booking.id}/proof`, { answer: 'confirmed' });
+        assert.equal(proof.status, 200);
+        assert.equal(proof.json.booking.passengerProof, 'confirmed');
+        credits = await driver.get('/api/me/credits');
+        assert.equal(credits.json.entries[0].co2AvoidedG, 2 * 62.5 * 140);
+        assert.equal(credits.json.entries[0].proof.closed, true);
+
+        const submitted = await driver.post('/api/me/credits/submit');
+        assert.equal(submitted.json.submitted.length, 1);
+        assert.equal((await driver.get('/api/me/credits')).json.entries[0].status, 'pending');
+        assert.equal((await driver.post('/api/me/credits/submit')).json.submitted.length, 0);
+    } finally {
+        clock = new Date('2026-10-10T12:00:00Z');
+    }
+});
+
+test('confirmation passager : seul le passager, après le départ, une fois, dans les 7 jours', async () => {
     clock = new Date('2026-10-10T12:00:00Z');
+    try {
+        const driver = await newUser('Dana');
+        const { json: { trip } } = await driver.post('/api/trips', tripDraft({ seats: 3 }));
+        const pia = await newUser('Pia');
+        const leo = await newUser('Léo');
+        const { json: { booking } } = await pia.post('/api/bookings', { tripId: trip.id, seats: 1 });
+        const { json: { booking: leoBooking } } = await leo.post('/api/bookings', { tripId: trip.id, seats: 2 });
+
+        assert.equal((await pia.post(`/api/bookings/${booking.id}/proof`, { answer: 'confirmed' })).status, 409); // pas parti
+        clock = new Date('2026-10-11T09:00:00Z');
+        assert.equal((await driver.post(`/api/bookings/${booking.id}/proof`, { answer: 'confirmed' })).status, 404);
+        assert.equal((await leo.post(`/api/bookings/${booking.id}/proof`, { answer: 'confirmed' })).status, 404);
+        assert.equal((await pia.post(`/api/bookings/${booking.id}/proof`, { answer: 'peut-être' })).status, 400);
+
+        // Réponse avant la confirmation du conducteur : prise en compte à sa confirmation.
+        assert.equal((await pia.post(`/api/bookings/${booking.id}/proof`, { answer: 'confirmed' })).status, 200);
+        assert.equal((await pia.post(`/api/bookings/${booking.id}/proof`, { answer: 'disputed' })).status, 409); // une seule fois
+        const done = await driver.post(`/api/trips/${trip.id}/complete`);
+        assert.equal(done.json.creditEntry.passengerSeats, 1);
+
+        // Léo conteste : ses places ne comptent pas ; tout le monde a répondu, l'entrée est soumissible.
+        assert.equal((await leo.post(`/api/bookings/${leoBooking.id}/proof`, { answer: 'disputed' })).status, 200);
+        const entry = (await driver.get('/api/me/credits')).json.entries.find(e => e.tripId === trip.id);
+        assert.equal(entry.co2AvoidedG, 62.5 * 140);
+        assert.deepEqual([entry.proof.confirmedSeats, entry.proof.disputedSeats, entry.proof.closed], [1, 2, true]);
+
+        // Le conducteur voit les réponses de ses passagers.
+        const mine = (await driver.get('/api/me/trips')).json.trips.find(t => t.trip.id === trip.id);
+        assert.deepEqual(mine.bookings.map(b => b.passengerProof).sort(), ['confirmed', 'disputed']);
+    } finally {
+        clock = new Date('2026-10-10T12:00:00Z');
+    }
+});
+
+test('délai de 7 jours : passé ce délai, plus de réponse et les places sans réponse ne comptent pas', async () => {
+    clock = new Date('2026-10-10T12:00:00Z');
+    try {
+        const driver = await newUser('Dana');
+        const { json: { trip } } = await driver.post('/api/trips', tripDraft());
+        const pia = await newUser('Pia');
+        const { json: { booking } } = await pia.post('/api/bookings', { tripId: trip.id, seats: 1 });
+        clock = new Date('2026-10-11T10:00:00Z');
+        await driver.post(`/api/trips/${trip.id}/complete`);
+
+        clock = new Date('2026-10-18T08:00:00Z'); // départ + 7 jours + 30 min
+        assert.equal((await pia.post(`/api/bookings/${booking.id}/proof`, { answer: 'confirmed' })).status, 409);
+        const entry = (await driver.get('/api/me/credits')).json.entries.find(e => e.tripId === trip.id);
+        assert.deepEqual([entry.proof.pendingSeats, entry.proof.closed, entry.credits], [1, true, 0]);
+        // Montant nul : rien n'est soumis.
+        assert.equal((await driver.post('/api/me/credits/submit')).json.submitted.length, 0);
+    } finally {
+        clock = new Date('2026-10-10T12:00:00Z');
+    }
 });
 
 test('itinéraire VROOM côté serveur : conducteur seul, réservations confirmées uniquement', async () => {

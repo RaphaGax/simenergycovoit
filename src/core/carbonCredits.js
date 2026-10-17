@@ -44,10 +44,11 @@ export function advanceCreditStatus(entry, { now = new Date() } = {}) {
     return { ...entry, status: next, [`${next}At`]: now.toISOString() };
 }
 
-// Soumet pour vérification toutes les entrées encore « estimées » ; renvoie les entrées modifiées.
-export function submitForValidation(entries, { now = new Date() } = {}) {
+// Soumet pour vérification les entrées encore « estimées » qui remplissent canSubmit (par exemple :
+// réponses des passagers closes, voir tripCompletion.isSubmittable) ; renvoie les entrées modifiées.
+export function submitForValidation(entries, { now = new Date(), canSubmit = () => true } = {}) {
     return entries
-        .filter(entry => entry.status === CREDIT_STATUS.ESTIMATED)
+        .filter(entry => entry.status === CREDIT_STATUS.ESTIMATED && canSubmit(entry))
         .map(entry => advanceCreditStatus(entry, { now }));
 }
 

@@ -449,3 +449,27 @@
     color: #92400e;
     font-size: 0.9em;
 }
+
+/* Confirmation du trajet par le passager */
+.proof-block {
+    margin: 15px 0;
+    padding: 12px 15px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+}
+
+.proof-block h3 {
+    margin-bottom: 6px;
+}
+
+.proof-answer {
+    font-weight: 500;
+}
+
+.proof-confirmed {
+    color: #15803d;
+}
+
+.proof-disputed {
+    color: #92400e;
+}

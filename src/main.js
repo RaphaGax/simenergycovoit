@@ -35,7 +35,7 @@ function renderAccount(container, { api, user }) {
         try {
             await api.auth.logout();
         } finally {
-            window.location.hash = '#/';
+            history.replaceState(null, '', '#/'); // sans hashchange : rechargement direct
             window.location.reload();
         }
     });

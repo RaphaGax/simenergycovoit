@@ -39,6 +39,12 @@ Application de covoiturage basée sur l'algorithme VROOM.
   depuis la fin. 0 par défaut (en-tête ignoré), 1 sur Render.
 - Ne jamais renvoyer l'e-mail d'un autre utilisateur : seulement son prénom (`driverName`, `passengerName`).
 - Une réservation n'est visible que par son passager et par le conducteur du trajet (404 sinon).
+- Crédits carbone : double confirmation. Le conducteur confirme le trajet effectué, chaque passager
+  confirme ou conteste dans les 7 jours (`src/core/tripProof.js`). Seules les places confirmées par
+  leur passager comptent ; soumission possible quand toutes les réponses sont arrivées ou le délai
+  passé (`isSubmittable`). Une entrée soumise ou validée n'est jamais recalculée.
+- Base : une colonne ajoutée après coup se déclare dans `ADDED_COLUMNS` (`server/db.js`), migrée
+  à l'ouverture des bases existantes.
 
 ## Points d'entrée
 - `server/server.js` : serveur HTTP (API `/api/*` et fichiers publics : `index.html`, `fleet.html`,

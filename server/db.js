@@ -51,7 +51,9 @@ CREATE TABLE IF NOT EXISTS bookings (
     price_chf INTEGER NOT NULL CHECK (price_chf = 0),
     status TEXT NOT NULL,
     created_at TEXT NOT NULL,
-    cancelled_at TEXT
+    cancelled_at TEXT,
+    passenger_proof TEXT,
+    passenger_proof_at TEXT
 );
 CREATE INDEX IF NOT EXISTS bookings_trip ON bookings(trip_id);
 CREATE INDEX IF NOT EXISTS bookings_passenger ON bookings(passenger_id);
@@ -104,7 +106,9 @@ const bookingFromRow = row => row && withoutNulls({
     priceChf: row.price_chf,
     status: row.status,
     createdAt: row.created_at,
-    cancelledAt: row.cancelled_at
+    cancelledAt: row.cancelled_at,
+    passengerProof: row.passenger_proof,
+    passengerProofAt: row.passenger_proof_at
 });
 
 const creditFromRow = row => row && withoutNulls({
@@ -122,9 +126,23 @@ const creditFromRow = row => row && withoutNulls({
 
 const userFromRow = row => row && { id: row.id, email: row.email, name: row.name, createdAt: row.created_at };
 
+// Colonnes ajoutées après la création des premières bases : ajoutées si elles manquent.
+const ADDED_COLUMNS = [
+    ['bookings', 'passenger_proof', 'TEXT'],
+    ['bookings', 'passenger_proof_at', 'TEXT']
+];
+
+function migrate(db) {
+    for (const [table, column, type] of ADDED_COLUMNS) {
+        const exists = db.prepare(`PRAGMA table_info(${table})`).all().some(info => info.name === column);
+        if (!exists) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+    }
+}
+
 export function openDatabase(path = ':memory:') {
     const db = new DatabaseSync(path);
     db.exec(SCHEMA);
+    migrate(db);
     if (path !== ':memory:') db.exec('PRAGMA journal_mode = WAL;');
 
     const statements = new Map();
@@ -222,7 +240,10 @@ export function openDatabase(path = ':memory:') {
                               GROUP BY trip_id`).all(...tripIds);
             return new Map(rows.map(row => [row.trip_id, row.seats]));
         },
-        cancel: (id, cancelledAt) => sql("UPDATE bookings SET status = 'cancelled', cancelled_at = ? WHERE id = ?").run(cancelledAt, id)
+        cancel: (id, cancelledAt) => sql("UPDATE bookings SET status = 'cancelled', cancelled_at = ? WHERE id = ?").run(cancelledAt, id),
+        // Réponse du passager enregistrée une seule fois (la condition protège contre une double réponse).
+        setProof: (id, proof, at) => sql('UPDATE bookings SET passenger_proof = ?, passenger_proof_at = ? WHERE id = ? AND passenger_proof IS NULL')
+            .run(proof, at, id)
     };
 
     const credits = {
@@ -231,12 +252,17 @@ export function openDatabase(path = ':memory:') {
                                       estimated_at, pending_at, validated_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                  ON CONFLICT(id) DO UPDATE SET status = excluded.status, pending_at = excluded.pending_at,
-                                               validated_at = excluded.validated_at`)
+                     validated_at = excluded.validated_at,
+                     -- Montants recalculés seulement tant que l'entrée est « estimée » (jamais après soumission).
+                     passenger_seats = CASE WHEN credits.status = 'estimated' THEN excluded.passenger_seats ELSE credits.passenger_seats END,
+                     co2_avoided_g = CASE WHEN credits.status = 'estimated' THEN excluded.co2_avoided_g ELSE credits.co2_avoided_g END,
+                     credits = CASE WHEN credits.status = 'estimated' THEN excluded.credits ELSE credits.credits END`)
                 .run(entry.id, entry.tripId, entry.driverId, entry.passengerSeats, entry.co2AvoidedG, entry.credits,
                     entry.status, entry.estimatedAt, entry.pendingAt ?? null, entry.validatedAt ?? null);
             return entry;
         },
-        byDriver: driverId => sql('SELECT * FROM credits WHERE driver_id = ? ORDER BY estimated_at DESC').all(driverId).map(creditFromRow)
+        byDriver: driverId => sql('SELECT * FROM credits WHERE driver_id = ? ORDER BY estimated_at DESC').all(driverId).map(creditFromRow),
+        byTrip: tripId => creditFromRow(sql('SELECT * FROM credits WHERE trip_id = ?').get(tripId))
     };
 
     return { users, sessions, trips, bookings, credits, transaction, close: () => db.close() };
