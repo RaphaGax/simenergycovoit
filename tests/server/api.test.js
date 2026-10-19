@@ -417,7 +417,7 @@ test('proxy ORS : connexion requise, entrées validées, 503 sans clé', async (
     orsEnabled = false;
     try {
         assert.equal((await user.post('/api/ors/directions', { from: LAUSANNE, to: GENEVE })).status, 503);
-        assert.deepEqual((await client().get('/api/config')).json, { orsEnabled: false });
+        assert.deepEqual((await client().get('/api/config')).json, { orsEnabled: false, passwordResetEnabled: false });
     } finally {
         orsEnabled = true;
     }

@@ -10,10 +10,16 @@ import * as bookingView from './ui/passenger/bookingView.js';
 import * as confirmationView from './ui/passenger/confirmationView.js';
 import * as publishTripView from './ui/driver/publishTripView.js';
 import * as creditsView from './ui/driver/creditsView.js';
+import * as accountView from './ui/account/accountView.js';
+import * as forgotPasswordView from './ui/account/forgotPasswordView.js';
+import * as resetPasswordView from './ui/account/resetPasswordView.js';
 
 const routes = [
     { path: '/', title: 'Accueil', view: homeView },
     { path: '/connexion', title: 'Connexion', view: loginView },
+    { path: '/mot-de-passe/oublie', title: 'Mot de passe oublié', view: forgotPasswordView },
+    { path: '/mot-de-passe/nouveau', title: 'Nouveau mot de passe', view: resetPasswordView },
+    { path: '/compte', title: 'Mon compte', view: accountView, auth: true },
     { path: '/passager/recherche', section: 'passager', title: 'Rechercher un trajet', view: searchView },
     { path: '/passager/reserver/:tripId', section: 'passager', title: 'Réserver', view: bookingView },
     { path: '/passager/reservation/:bookingId', section: 'passager', title: 'Ma réservation', view: confirmationView, auth: true },
@@ -39,7 +45,9 @@ function renderAccount(container, { api, user }) {
             window.location.reload();
         }
     });
-    container.replaceChildren(el('span', { text: `Bonjour ${user.name}` }), logout);
+    container.replaceChildren(
+        el('a', { class: 'account-link', href: '#/compte', 'aria-label': `Mon compte (${user.name})`, text: `Bonjour ${user.name}` }),
+        logout);
 }
 
 function renderError(error) {
@@ -66,7 +74,7 @@ startRouter({
     root: app,
     routes,
     // Itinéraires (ORS via le serveur) réservés aux utilisateurs connectés : ors vaut null sinon.
-    context: { api, user, ors: user && config.orsEnabled ? api.ors : null },
+    context: { api, user, config, ors: user && config.orsEnabled ? api.ors : null },
     renderError,
     onNavigate: route => {
         document.title = `${route.title} — EcoVroom`;

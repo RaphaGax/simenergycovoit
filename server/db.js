@@ -11,7 +11,16 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL,
     password_hash TEXT NOT NULL,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    deleted_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS password_resets (
+    token_hash TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    used_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
@@ -129,7 +138,8 @@ const userFromRow = row => row && { id: row.id, email: row.email, name: row.name
 // Colonnes ajoutées après la création des premières bases : ajoutées si elles manquent.
 const ADDED_COLUMNS = [
     ['bookings', 'passenger_proof', 'TEXT'],
-    ['bookings', 'passenger_proof_at', 'TEXT']
+    ['bookings', 'passenger_proof_at', 'TEXT'],
+    ['users', 'deleted_at', 'TEXT']
 ];
 
 function migrate(db) {
@@ -176,6 +186,12 @@ export function openDatabase(path = ':memory:') {
             const row = sql('SELECT * FROM users WHERE email = ?').get(email);
             return row && { user: userFromRow(row), passwordHash: row.password_hash };
         },
+        passwordHash: id => sql('SELECT password_hash FROM users WHERE id = ? AND deleted_at IS NULL').get(id)?.password_hash ?? null,
+        setPasswordHash: (id, hash) => sql('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, id),
+        // Suppression de compte : plus aucune donnée personnelle (e-mail, prénom, mot de passe).
+        // La ligne reste pour l'historique partagé (trajets, réservations, preuves des autres).
+        anonymize: (id, deletedAt) => sql(`UPDATE users SET email = ?, name = 'Compte supprimé', password_hash = '!', deleted_at = ?
+                                           WHERE id = ?`).run(`supprime-${id}@invalid`, deletedAt, id),
         names: ids => {
             if (ids.length === 0) return new Map();
             const rows = sql(`SELECT id, name FROM users WHERE id IN (${ids.map(() => '?').join(',')})`).all(...ids);
@@ -194,6 +210,7 @@ export function openDatabase(path = ':memory:') {
             return userFromRow(row);
         },
         delete: tokenHash => sql('DELETE FROM sessions WHERE token_hash = ?').run(tokenHash),
+        deleteForUser: userId => sql('DELETE FROM sessions WHERE user_id = ?').run(userId),
         deleteExpired: now => sql('DELETE FROM sessions WHERE expires_at <= ?').run(now)
     };
 
@@ -210,7 +227,12 @@ export function openDatabase(path = ':memory:') {
         get: id => tripFromRow(sql('SELECT * FROM trips WHERE id = ?').get(id)),
         upcoming: now => sql('SELECT * FROM trips WHERE departure_at > ? ORDER BY departure_at').all(now).map(tripFromRow),
         byDriver: driverId => sql('SELECT * FROM trips WHERE driver_id = ? ORDER BY departure_at').all(driverId).map(tripFromRow),
-        markCompleted: (id, completedAt) => sql('UPDATE trips SET completed_at = ? WHERE id = ?').run(completedAt, id)
+        markCompleted: (id, completedAt) => sql('UPDATE trips SET completed_at = ? WHERE id = ?').run(completedAt, id),
+        // Trajet à venir sans passager (ses réservations annulées partent avec lui).
+        deleteWithBookings(id) {
+            sql('DELETE FROM bookings WHERE trip_id = ?').run(id);
+            sql('DELETE FROM trips WHERE id = ?').run(id);
+        }
     };
 
     const bookings = {
@@ -231,6 +253,8 @@ export function openDatabase(path = ':memory:') {
             return sql(`SELECT * FROM bookings WHERE trip_id IN (${tripIds.map(() => '?').join(',')}) ORDER BY created_at`)
                 .all(...tripIds).map(bookingFromRow);
         },
+        // Points de prise en charge et de dépose (adresses possibles) effacés ; distances conservées.
+        clearPlacesForPassenger: passengerId => sql('UPDATE bookings SET pickup = NULL, dropoff = NULL WHERE passenger_id = ?').run(passengerId),
         byPassenger: passengerId => sql('SELECT * FROM bookings WHERE passenger_id = ? ORDER BY created_at').all(passengerId).map(bookingFromRow),
         // Places confirmées par trajet, pour calculer les places restantes sans exposer les réservations.
         seatsBookedByTrip(tripIds) {
@@ -265,5 +289,19 @@ export function openDatabase(path = ':memory:') {
         byTrip: tripId => creditFromRow(sql('SELECT * FROM credits WHERE trip_id = ?').get(tripId))
     };
 
-    return { users, sessions, trips, bookings, credits, transaction, close: () => db.close() };
+    const passwordResets = {
+        create({ tokenHash, userId, createdAt, expiresAt }) {
+            sql('INSERT INTO password_resets (token_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)')
+                .run(tokenHash, userId, createdAt, expiresAt);
+        },
+        findUser(tokenHash, now) {
+            const row = sql(`SELECT users.* FROM password_resets JOIN users ON users.id = password_resets.user_id
+                             WHERE token_hash = ? AND expires_at > ? AND used_at IS NULL AND users.deleted_at IS NULL`).get(tokenHash, now);
+            return userFromRow(row);
+        },
+        // Un lien utilisé, ou tout lien d'un compte dont le mot de passe vient de changer, ne sert plus.
+        deleteForUser: userId => sql('DELETE FROM password_resets WHERE user_id = ?').run(userId)
+    };
+
+    return { users, sessions, trips, bookings, credits, passwordResets, transaction, close: () => db.close() };
 }

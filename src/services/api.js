@@ -55,7 +55,15 @@ export function createApi({ fetch = globalThis.fetch.bind(globalThis), baseUrl =
             me: async () => (await get('/api/auth/me')).user,
             register: async input => (await post('/api/auth/register', input)).user,
             login: async input => (await post('/api/auth/login', input)).user,
-            logout: () => post('/api/auth/logout')
+            logout: () => post('/api/auth/logout'),
+            // Mot de passe oublié : la réponse est la même que l'adresse existe ou non.
+            requestPasswordReset: async email => (await post('/api/auth/password-reset', { email })).message,
+            confirmPasswordReset: async (token, password) => (await post('/api/auth/password-reset/confirm', { token, password })).user
+        },
+        account: {
+            changePassword: (currentPassword, newPassword) => post('/api/me/password', { currentPassword, newPassword }),
+            // { deleted, deletedTrips, cancelledBookings }
+            delete: password => post('/api/me/delete', { password })
         },
         trips: {
             // [{ trip, seatsLeft, driverName }]

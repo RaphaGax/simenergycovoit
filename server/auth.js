@@ -8,6 +8,7 @@ const KEY_LENGTH = 64;
 export const SESSION_COOKIE = 'ecovroom_session';
 export const SESSION_DAYS = 30;
 export const MIN_PASSWORD_LENGTH = 10;
+export const RESET_TOKEN_MINUTES = 30;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function hashPassword(password) {
@@ -29,17 +30,25 @@ export const hashToken = token => createHash('sha256').update(token).digest('hex
 // Empreinte calculée pour un e-mail inconnu : la connexion prend le même temps qu'il existe ou non.
 const DUMMY_HASH = await hashPassword(randomUUID());
 
+// Message d'erreur pour un nouveau mot de passe, ou null s'il est acceptable.
+export function passwordProblem(password) {
+    if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
+        return `Le mot de passe doit contenir au moins ${MIN_PASSWORD_LENGTH} caractères.`;
+    }
+    if (password.length > 200) return 'Mot de passe trop long.';
+    return null;
+}
+
+export const normalizeEmail = email => String(email ?? '').trim().toLowerCase();
+
 // Renvoie { valid, errors, value } avec l'e-mail normalisé.
 export function validateRegistration({ email, password, name }) {
     const errors = {};
-    const normalizedEmail = String(email ?? '').trim().toLowerCase();
+    const normalizedEmail = normalizeEmail(email);
     const trimmedName = String(name ?? '').trim();
     if (!EMAIL_PATTERN.test(normalizedEmail) || normalizedEmail.length > 254) errors.email = 'Adresse e-mail invalide.';
-    if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
-        errors.password = `Le mot de passe doit contenir au moins ${MIN_PASSWORD_LENGTH} caractères.`;
-    } else if (password.length > 200) {
-        errors.password = 'Mot de passe trop long.';
-    }
+    const problem = passwordProblem(password);
+    if (problem) errors.password = problem;
     if (!trimmedName || trimmedName.length > 80) errors.name = 'Indiquez votre prénom ou un pseudonyme (80 caractères au plus).';
     return {
         valid: Object.keys(errors).length === 0,
@@ -68,7 +77,7 @@ export function createAuth(db, { now = () => new Date() } = {}) {
 
     // Renvoie l'utilisateur, ou null si l'e-mail ou le mot de passe est faux (sans dire lequel).
     async function authenticate(email, password) {
-        const found = db.users.findCredentials(String(email ?? '').trim().toLowerCase());
+        const found = db.users.findCredentials(normalizeEmail(email));
         const ok = await verifyPassword(String(password ?? ''), found?.passwordHash ?? DUMMY_HASH);
         return found && ok ? found.user : null;
     }
@@ -85,7 +94,41 @@ export function createAuth(db, { now = () => new Date() } = {}) {
     const userForToken = token => (token ? db.sessions.findUser(hashToken(token), now().toISOString()) : null);
     const endSession = token => { if (token) db.sessions.delete(hashToken(token)); };
 
-    return { register, authenticate, startSession, userForToken, endSession };
+    // Vérifie le mot de passe d'un utilisateur déjà connecté (actions sensibles).
+    async function checkPassword(userId, password) {
+        return verifyPassword(String(password ?? ''), db.users.passwordHash(userId) ?? DUMMY_HASH);
+    }
+
+    // Nouveau mot de passe : toutes les sessions sont fermées (un éventuel intrus est déconnecté).
+    async function setPassword(userId, password) {
+        const passwordHash = await hashPassword(password);
+        db.users.setPasswordHash(userId, passwordHash);
+        db.sessions.deleteForUser(userId);
+        db.passwordResets.deleteForUser(userId);
+    }
+
+    // Lien de réinitialisation : jeton aléatoire à usage unique, seule son empreinte est stockée.
+    function createResetToken(userId) {
+        const token = randomBytes(32).toString('base64url');
+        const created = now();
+        db.passwordResets.deleteForUser(userId);
+        db.passwordResets.create({
+            tokenHash: hashToken(token),
+            userId,
+            createdAt: created.toISOString(),
+            expiresAt: new Date(created.getTime() + RESET_TOKEN_MINUTES * 60000).toISOString()
+        });
+        return token;
+    }
+
+    // Utilisateur du jeton s'il est valide (non expiré, non utilisé), sinon null.
+    const userForResetToken = token =>
+        (typeof token === 'string' && token ? db.passwordResets.findUser(hashToken(token), now().toISOString()) : null);
+
+    return {
+        register, authenticate, startSession, userForToken, endSession,
+        checkPassword, setPassword, createResetToken, userForResetToken
+    };
 }
 
 // Limite le nombre de tentatives par clé (adresse IP, e-mail…) sur une fenêtre glissante.

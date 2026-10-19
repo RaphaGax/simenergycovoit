@@ -5,7 +5,7 @@ import { randomUUID, randomBytes } from 'node:crypto';
 import { validateTrip, createTrip } from '../src/core/trips.js';
 import { searchTrips, validateSearch } from '../src/core/search.js';
 import {
-    bookingRefusal, createBooking, cancelBooking, BOOKING_STATUS
+    bookingRefusal, createBooking, cancelBooking, canCancel, hasDeparted, seatsBooked, BOOKING_STATUS
 } from '../src/core/booking.js';
 import { completeTrip, refreshCreditEntry, isSubmittable } from '../src/core/tripCompletion.js';
 import { recordPassengerProof, summarizeProof } from '../src/core/tripProof.js';
@@ -14,7 +14,9 @@ import { isValidCoords } from '../src/core/geo.js';
 import { buildTripProblem } from '../src/core/vroom/buildTripProblem.js';
 import { parseTripSolution } from '../src/core/vroom/parseTripSolution.js';
 import { MAX_CANDIDATES } from '../src/core/matching.js';
-import { createAuth, createRateLimiter, SESSION_COOKIE, SESSION_DAYS } from './auth.js';
+import {
+    createAuth, createRateLimiter, passwordProblem, normalizeEmail, SESSION_COOKIE, SESSION_DAYS, RESET_TOKEN_MINUTES
+} from './auth.js';
 import {
     HttpError, readJson, sendJson, parseCookies, serializeCookie, createRouter, createStaticHandler, clientIp
 } from './http.js';
@@ -59,6 +61,7 @@ export const DEFAULT_LIMITS = Object.freeze({
 
 export function createApp({
     db, ors = null, staticDir, secureCookies = false, trustProxyHops = 0, debugClientIp = false,
+    mailer = null, publicUrl = null,
     now = () => new Date(), limits = {}
 }) {
     const { authPerIp, loginPerEmail, orsPerUser } = { ...DEFAULT_LIMITS, ...limits };
@@ -67,8 +70,19 @@ export function createApp({
     const loginByIp = createRateLimiter({ limit: authPerIp, windowMs: 15 * 60000 });
     const loginByEmail = createRateLimiter({ limit: loginPerEmail, windowMs: 15 * 60000 });
     const orsByUser = createRateLimiter({ limit: orsPerUser, windowMs: 60000 });
+    const resetByEmail = createRateLimiter({ limit: 3, windowMs: 60 * 60000 }); // 3 liens par heure et par adresse
+    const passwordResetEnabled = Boolean(mailer && publicUrl);
 
     const sessionCookie = (token, maxAge) => serializeCookie(SESSION_COOKIE, token, { maxAge, secure: secureCookies });
+
+    // Actions sensibles : mot de passe actuel exigé, tentatives limitées par compte.
+    async function requirePassword(user, password) {
+        if (!loginByEmail.take(user.email)) throw new HttpError(429, 'Trop de tentatives, réessayez dans quelques minutes.');
+        if (!(await auth.checkPassword(user.id, password))) {
+            throw new HttpError(403, 'Mot de passe incorrect.', { fields: { password: 'Mot de passe incorrect.' } });
+        }
+        loginByEmail.reset(user.email);
+    }
 
     function requireUser(ctx) {
         if (!ctx.user) throw new HttpError(401, 'Connectez-vous pour continuer.');
@@ -116,7 +130,7 @@ export function createApp({
     }
 
     const routes = [
-        ['GET', '/api/config', () => ({ orsEnabled: Boolean(ors) })],
+        ['GET', '/api/config', () => ({ orsEnabled: Boolean(ors), passwordResetEnabled })],
 
         // Authentification
         ['POST', '/api/auth/register', async ctx => {
@@ -146,7 +160,83 @@ export function createApp({
             ctx.setCookie(sessionCookie('', 0));
             return { ok: true };
         }],
-        ['GET', '/api/auth/me', ctx => ({ user: ctx.user })],
+        ['GET', '/api/auth/me', ctx => ({ user: ctx.user ?? null })],
+
+        // Mot de passe oublié : même réponse que l'adresse existe ou non (rien n'est révélé),
+        // e-mail envoyé sans attendre (la durée de réponse ne trahit pas non plus l'existence du compte).
+        ['POST', '/api/auth/password-reset', async ctx => {
+            const body = await readJson(ctx.req);
+            if (!passwordResetEnabled) throw new HttpError(503, 'La réinitialisation par e-mail n’est pas encore disponible.');
+            const email = normalizeEmail(body.email);
+            if (!loginByIp.take(ctx.ip) || !resetByEmail.take(email)) {
+                throw new HttpError(429, 'Trop de demandes, réessayez plus tard.');
+            }
+            const found = email ? db.users.findCredentials(email) : null;
+            if (found) {
+                const token = auth.createResetToken(found.user.id);
+                const link = `${publicUrl}/#/mot-de-passe/nouveau?jeton=${encodeURIComponent(token)}`;
+                mailer.send({
+                    to: found.user.email,
+                    subject: 'EcoVroom : réinitialisation de votre mot de passe',
+                    text: `Bonjour ${found.user.name},\n\n`
+                        + `Pour choisir un nouveau mot de passe, ouvrez ce lien (valable ${RESET_TOKEN_MINUTES} minutes, une seule fois) :\n`
+                        + `${link}\n\n`
+                        + 'Si vous n’êtes pas à l’origine de cette demande, ignorez ce message : votre mot de passe reste inchangé.\n\nEcoVroom'
+                }).catch(error => console.error('Envoi du lien de réinitialisation impossible :', error.message));
+            }
+            return { message: 'Si un compte existe avec cette adresse, un lien de réinitialisation vient d’y être envoyé.' };
+        }],
+        ['POST', '/api/auth/password-reset/confirm', async ctx => {
+            const body = await readJson(ctx.req);
+            if (!loginByIp.take(ctx.ip)) throw new HttpError(429, 'Trop de tentatives, réessayez plus tard.');
+            const user = auth.userForResetToken(body.token);
+            if (!user) throw new HttpError(400, 'Lien invalide ou expiré. Faites une nouvelle demande.');
+            const problem = passwordProblem(body.password);
+            if (problem) throw new HttpError(400, 'Mot de passe refusé.', { fields: { password: problem } });
+            await auth.setPassword(user.id, body.password); // ferme les sessions et invalide le lien
+            const { token } = auth.startSession(user.id);
+            ctx.setCookie(sessionCookie(token, SESSION_DAYS * 86400));
+            return { user };
+        }],
+
+        // Compte : changement de mot de passe et suppression (mot de passe actuel exigé).
+        ['POST', '/api/me/password', async ctx => {
+            const body = await readJson(ctx.req);
+            const user = requireUser(ctx);
+            await requirePassword(user, body.currentPassword);
+            const problem = passwordProblem(body.newPassword);
+            if (problem) throw new HttpError(400, 'Mot de passe refusé.', { fields: { newPassword: problem } });
+            await auth.setPassword(user.id, body.newPassword); // déconnecte aussi les autres appareils
+            const { token } = auth.startSession(user.id);
+            ctx.setCookie(sessionCookie(token, SESSION_DAYS * 86400));
+            return { ok: true };
+        }],
+        ['POST', '/api/me/delete', async ctx => {
+            const body = await readJson(ctx.req);
+            const user = requireUser(ctx);
+            await requirePassword(user, body.password);
+            const summary = db.transaction(() => {
+                const current = now();
+                const upcoming = db.trips.byDriver(user.id).filter(trip => !hasDeparted(trip, current));
+                const withPassengers = upcoming.filter(trip => seatsBooked(trip.id, db.bookings.byTrip(trip.id)) > 0);
+                if (withPassengers.length) {
+                    throw new HttpError(409, 'Suppression impossible : des passagers ont réservé vos trajets à venir ('
+                        + withPassengers.map(trip => `${trip.origin} → ${trip.destination}`).join(', ')
+                        + '). Réessayez une fois ces trajets passés.');
+                }
+                upcoming.forEach(trip => db.trips.deleteWithBookings(trip.id));
+                const toCancel = db.bookings.byPassenger(user.id)
+                    .filter(booking => canCancel(booking, db.trips.get(booking.tripId), current));
+                toCancel.forEach(booking => db.bookings.cancel(booking.id, current.toISOString()));
+                db.bookings.clearPlacesForPassenger(user.id);
+                db.sessions.deleteForUser(user.id);
+                db.passwordResets.deleteForUser(user.id);
+                db.users.anonymize(user.id, current.toISOString());
+                return { deletedTrips: upcoming.length, cancelledBookings: toCancel.length };
+            });
+            ctx.setCookie(sessionCookie('', 0));
+            return { deleted: true, ...summary };
+        }],
 
         // Trajets
         ['GET', '/api/trips', ctx => {

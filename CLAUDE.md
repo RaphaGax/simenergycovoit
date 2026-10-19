@@ -45,6 +45,14 @@ Application de covoiturage basée sur l'algorithme VROOM.
   passé (`isSubmittable`). Une entrée soumise ou validée n'est jamais recalculée.
 - Base : une colonne ajoutée après coup se déclare dans `ADDED_COLUMNS` (`server/db.js`), migrée
   à l'ouverture des bases existantes.
+- Compte : changement de mot de passe et suppression exigent le mot de passe actuel ; tout nouveau
+  mot de passe ferme les sessions et invalide les liens de réinitialisation.
+- Mot de passe oublié : jeton aléatoire à usage unique (30 min), seule son empreinte est en base ;
+  même réponse que l'e-mail existe ou non ; lien construit avec `PUBLIC_URL`/`RENDER_EXTERNAL_URL`,
+  jamais avec l'en-tête Host. Désactivé sans expéditeur (`server/mailer.js`).
+- Suppression de compte (nLPD/RGPD) : anonymisation de l'utilisateur (e-mail, prénom, mot de passe),
+  points de prise en charge effacés, réservations à venir annulées, trajets à venir sans passager
+  supprimés ; refusée si un trajet à venir a des passagers. L'historique partagé reste.
 
 ## Points d'entrée
 - `server/server.js` : serveur HTTP (API `/api/*` et fichiers publics : `index.html`, `fleet.html`,
@@ -75,4 +83,5 @@ Application de covoiturage basée sur l'algorithme VROOM.
 - Tests : `npm test` (exécutant de tests intégré à Node, Node 22.13+). Les tests serveur
   (`tests/server/`) démarrent un vrai serveur sur une base en mémoire.
 - Lancer en local : `npm start` puis http://localhost:8000/ (variables : `PORT`, `DATABASE_PATH`,
-  `ORS_API_KEY`, `COOKIE_SECURE=1` en production derrière HTTPS, `TRUST_PROXY_HOPS`).
+  `ORS_API_KEY`, `COOKIE_SECURE=1` en production derrière HTTPS, `TRUST_PROXY_HOPS`,
+  `RESEND_API_KEY` + `MAIL_FROM` ou `MAIL_TRANSPORT=console`, `PUBLIC_URL`).

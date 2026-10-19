@@ -473,3 +473,24 @@
 .proof-disputed {
     color: #92400e;
 }
+
+/* Compte : mot de passe et suppression */
+.auth-footer {
+    margin-top: 10px;
+    font-size: 0.9em;
+}
+
+.plain-list {
+    margin: 6px 0 10px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.danger-zone {
+    border: 1px solid #fecaca;
+}
+
+.danger-zone h2 {
+    color: #b91c1c;
+}
