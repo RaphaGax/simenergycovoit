@@ -28,3 +28,9 @@ services:
       # Clé openrouteservice, demandée par Render à la création (facultative).
       - key: ORS_API_KEY
         sync: false
+      # E-mails « mot de passe oublié » via Resend : expéditeur du domaine vérifié chez Resend.
+      # Sans clé, la fonction reste masquée. L'adresse du site (liens) vient de RENDER_EXTERNAL_URL.
+      - key: MAIL_FROM
+        value: "EcoVroom <noreply@ecovroom.org>"
+      - key: RESEND_API_KEY
+        sync: false
