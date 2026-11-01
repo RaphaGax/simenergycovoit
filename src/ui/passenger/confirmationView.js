@@ -75,6 +75,7 @@ function details(booking, trip) {
 }
 
 export async function render(root, context, { params }) {
+    root.classList.add('theme-passenger');
     const { api, user } = context;
     const card = el('section', { class: 'card' });
     root.append(card);

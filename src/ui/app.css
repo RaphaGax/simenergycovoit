@@ -496,66 +496,117 @@
 }
 
 /* ==========================================================================
-   Thème EcoVroom, d'après la maquette de l'application mobile (NativeScript + Tailwind) :
-   barre de titre verte, boutons verts, tuiles vert pâle, cartes blanches arrondies,
-   barre d'onglets en bas sur mobile. Limité à l'application (body.app) : le simulateur
-   de parc (fleet.html) garde son apparence d'origine.
-   Couleurs Tailwind de la maquette ; le vert 700 sert aux textes blancs sur petits
-   éléments (contraste suffisant), le vert 600 aux grandes surfaces.
+   Thème EcoVroom, d'après la maquette mobile du développeur (colibri vert → bleu) :
+   en-tête blanc avec logo, bandeaux en dégradé vert → bleu, cartes blanches très arrondies,
+   boutons verts (conducteur) et bleus (passager), barre d'onglets en bas sur mobile.
+   Limité à l'application (body.app) : le simulateur de parc (fleet.html) garde son apparence.
+   Teintes vives de la maquette pour le décor ; teintes foncées pour les textes blancs
+   (contraste ≥ 4,5:1 : vert #2F8238 = 4,8, bleu #0A78B0 = 4,85).
+   Police système : aucune police téléchargée.
    ========================================================================== */
 body.app {
-    --brand: #16a34a;        /* green-600 : barre de titre */
-    --brand-strong: #15803d; /* green-700 : boutons, liens, en-têtes de tableau */
-    --brand-darker: #166534; /* green-800 : survol */
-    --brand-soft: #dcfce7;   /* green-100 : tuiles */
-    --brand-softer: #f0fdf4; /* green-50 */
-    --ink: #1f2937;          /* gray-800 : titres */
-    --muted: #4b5563;        /* gray-600 : textes secondaires */
+    --green: #3d9a44;        /* décor : icônes, bordures */
+    --blue: #219dd8;
+    --green-ink: #2f8238;    /* boutons, liens, textes blancs */
+    --green-dark: #256b2d;   /* survol */
+    --blue-ink: #0a78b0;
+    --blue-dark: #08608d;
+    --green-soft: #ecf5ec;   /* pastilles d'icônes */
+    --blue-soft: #e5f6fb;
+    --yellow-soft: #fffae5;
+    --gradient: linear-gradient(135deg, #33873d 0%, #0880b0 100%);
+    --ink: #1f2937;
+    --muted: #4a5565;
+    --line: #e5e7eb;
+    --radius-card: 24px;
+    --radius-button: 15px;
+    --shadow: 0 4px 16px rgba(17, 24, 39, 0.06);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     background-color: #f3f4f6;
     color: var(--ink);
-    padding: 0 0 15px;
-}
-
-/* Barre de titre verte */
-body.app header {
-    background: var(--brand);
-    color: #fff;
-    margin: 0 -15px 10px;
-    padding: 18px 15px 16px;
-    border-radius: 0 0 16px 16px;
+    padding: 0 0 24px;
 }
 
 body.app .container {
-    padding: 0 15px;
+    max-width: 960px;
+    padding: 0 16px;
+}
+
+/* En-tête blanc : logo à gauche, compte à droite, onglets au centre (ordinateur) */
+body.app header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 16px;
+    background: #fff;
+    margin: 0 -16px;
+    padding: 10px 16px;
+    text-align: left;
+    box-shadow: 0 1px 0 var(--line);
 }
 
 body.app header h1 {
-    color: #fff;
-    letter-spacing: 0.5px;
+    margin: 0;
+    font-size: 1em;
+    line-height: 0;
 }
 
-body.app header p {
-    color: var(--brand-soft);
+body.app .brand img {
+    display: block;
+    width: auto;
+    height: 52px;
 }
 
-body.app .account,
-body.app .account span {
-    color: #fff;
+body.app header .tagline {
+    display: none; /* le slogan figure sur l'accueil */
 }
 
-body.app .account-link,
-body.app .link-button {
-    color: #fff;
+body.app .account {
+    order: 3;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.95em;
+}
+
+body.app .account-link {
+    color: var(--green-ink);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+body.app .link-button,
+body.app .link-button:hover {
+    background: none;
+    color: var(--muted);
+}
+
+body.app .app-nav {
+    order: 2;
+    margin: 0;
+    gap: 6px;
 }
 
 body.app .app-nav a {
-    color: #fff;
-    border-color: rgba(255, 255, 255, 0.8);
+    border: none;
+    border-radius: 999px;
+    padding: 8px 16px;
+    color: var(--muted);
+}
+
+body.app .app-nav a:hover {
+    background-color: #f3f4f6;
 }
 
 body.app .app-nav a[aria-current] {
-    background-color: #fff;
-    color: var(--brand-strong);
+    background-color: var(--green-soft);
+    color: var(--green-ink);
+}
+
+body.app #app {
+    margin-top: 16px;
+    gap: 16px;
 }
 
 /* Titres, liens, cartes */
@@ -565,108 +616,445 @@ body.app h3 {
     font-weight: 700;
 }
 
+body.app h2 {
+    font-size: 1.3em;
+}
+
+body.app h3 {
+    font-size: 1.1em;
+}
+
 body.app #app a:not(.button-link) {
-    color: var(--brand-strong);
+    color: var(--green-ink);
 }
 
 body.app .card {
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    border-radius: var(--radius-card);
+    padding: 20px;
+    box-shadow: var(--shadow);
 }
 
 body.app .card:hover {
     transform: none; /* pas d'effet de survol sur les cartes de l'application */
 }
 
-/* Boutons verts */
+body.app .hint,
+body.app .placeholder,
+body.app .choice-card p {
+    color: var(--muted);
+}
+
+/* Boutons : vert par défaut, bleu pour le parcours passager */
 body.app button,
 body.app .button-link {
-    background-color: var(--brand-strong);
+    background-color: var(--green-ink);
     color: #fff;
-    border-radius: 8px;
+    border: none;
+    border-radius: var(--radius-button);
+    padding: 12px 20px;
+    font-weight: 600;
+    min-height: 44px;
 }
 
 body.app button:hover,
 body.app .button-link:hover {
-    background-color: var(--brand-darker);
+    background-color: var(--green-dark);
+}
+
+body.app .theme-passenger button,
+body.app .theme-passenger .button-link {
+    background-color: var(--blue-ink);
+}
+
+body.app .theme-passenger button:hover,
+body.app .theme-passenger .button-link:hover {
+    background-color: var(--blue-dark);
 }
 
 body.app button:focus-visible,
 body.app a:focus-visible,
 body.app input:focus-visible,
 body.app select:focus-visible {
-    outline: 3px solid #86efac;
+    outline: 3px solid #7cc9ec;
     outline-offset: 2px;
 }
 
-body.app .button-secondary {
+body.app .button-secondary,
+body.app .theme-passenger .button-secondary {
     background-color: #fff;
     color: #b91c1c;
+    border: 1px solid #fca5a5;
 }
 
-body.app .button-secondary:hover {
+body.app .button-secondary:hover,
+body.app .theme-passenger .button-secondary:hover {
     background-color: #fef2f2;
 }
 
-body.app .button-secondary-neutral {
+body.app .button-secondary-neutral,
+body.app .theme-passenger .button-secondary-neutral {
     background-color: #fff;
-    color: var(--brand-strong);
-    border-color: var(--brand-strong);
+    color: var(--green-ink);
+    border: 1px solid var(--green-ink);
 }
 
-body.app .button-secondary-neutral:hover {
-    background-color: var(--brand-softer);
+body.app .button-secondary-neutral:hover,
+body.app .theme-passenger .button-secondary-neutral:hover {
+    background-color: var(--green-soft);
 }
 
-body.app .link-button,
-body.app .link-button:hover {
-    background: none;
+/* Champs : 16 px (pas de zoom automatique sur iPhone/iPad), coins arrondis */
+body.app input,
+body.app select {
+    font-size: 16px;
+    border-radius: 12px;
+    border: 1px solid #d1d5db;
+    background-color: #fff;
+    padding: 11px 12px;
 }
 
-/* Champs */
 body.app input:focus,
 body.app select:focus {
-    border-color: var(--brand-strong);
+    border-color: var(--blue);
     outline: none;
 }
 
 /* Tableaux */
 body.app th {
-    background-color: var(--brand-strong);
+    background-color: var(--green-ink);
 }
 
-/* Tuiles vert pâle (comme les statistiques de la maquette) */
-body.app .credit-tile {
-    background-color: var(--brand-soft);
-    border-color: transparent;
+/* Icônes au trait (src/ui/components/icons.js) */
+body.app .icon {
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.33;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Bandeau en dégradé vert → bleu (recherche, publication, compte) */
+body.app .page-hero {
+    background: var(--gradient);
+    color: #fff;
+    border-radius: var(--radius-card);
+    padding: 22px 20px;
+}
+
+body.app .page-hero h2 {
+    color: #fff;
+    margin: 0 0 4px;
+    font-size: 1.5em;
+}
+
+body.app .page-hero p {
+    color: #fff;
+    margin: 0;
+    opacity: 0.95;
+}
+
+/* Accueil : logo, slogan et feuille « Que souhaitez-vous faire ? » */
+body.app .home-hero {
+    text-align: center;
+    padding: 12px 0 0;
+}
+
+body.app .home-hero img {
+    width: 180px;
+    max-width: 60%;
+    height: auto;
+}
+
+body.app .home-hero .slogan {
+    margin-top: 8px;
+    font-size: 1.15em;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+body.app .home-hero .promise {
+    margin-top: 4px;
+    color: var(--muted);
+}
+
+body.app .home-sheet {
+    border-radius: 28px;
+    padding: 24px 20px;
+}
+
+body.app .home-sheet h2 {
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+body.app .choice-list {
+    display: grid;
+    gap: 12px;
+}
+
+@media (min-width: 701px) {
+    body.app .choice-list {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+body.app .choice-button {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    border-radius: 20px;
+    color: #fff;
+    text-decoration: none;
+    min-height: 72px;
+    margin: 0;
+    text-align: left;
+}
+
+body.app .choice-button strong {
+    display: block;
+    font-size: 1.1em;
+}
+
+body.app .choice-button span {
+    display: block;
+    font-size: 0.9em;
+}
+
+body.app .choice-passenger {
+    background-color: var(--blue-ink);
+}
+
+body.app .choice-passenger:hover {
+    background-color: var(--blue-dark);
+}
+
+body.app .choice-driver {
+    background-color: var(--green-ink);
+}
+
+body.app .choice-driver:hover {
+    background-color: var(--green-dark);
+}
+
+body.app .choice-button .choice-icon {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+body.app .home-account {
+    margin-top: 16px;
+    text-align: center;
+}
+
+/* Résumé de trajet : avatar à initiale, lignes avec icônes */
+body.app .trip-summary,
+body.app .trip-summary-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+body.app .trip-summary.has-avatar {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+body.app .avatar {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2px solid var(--green);
+    background-color: var(--green-soft);
+    color: var(--green-ink);
+    font-weight: 700;
+    font-size: 1.1em;
+}
+
+body.app .trip-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 0.95em;
+}
+
+body.app .trip-line .icon {
+    color: var(--green);
+}
+
+body.app .trip-route {
+    color: var(--ink);
+    font-size: 1.05em;
+}
+
+body.app .trip-when {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+}
+
+body.app .trip-meta {
+    color: var(--muted);
+    font-size: 0.9em;
+}
+
+body.app .trip-item {
+    border-radius: 20px;
+    border: 1px solid var(--line);
+    background-color: #fff;
+    padding: 16px;
+}
+
+/* Badges : gratuit, CO₂ */
+body.app .price-badge {
+    background-color: var(--green-soft);
+    color: var(--green-dark);
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+body.app .price-badge,
+body.app .co2-badge {
+    white-space: nowrap;
+}
+
+body.app .trip-actions {
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+body.app .trip-actions .button-link {
+    margin-left: auto;
+}
+
+body.app .co2-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background-color: var(--green-soft);
+    color: var(--green-dark); /* petit texte sur vert pâle : 6,1:1 */
+    border-radius: 999px;
+    padding: 2px 10px;
+    font-size: 0.85em;
+    font-weight: 600;
+}
+
+/* Tuiles de statistiques (crédits, compte) */
+body.app .credit-tile,
+body.app .stat-card {
+    background-color: #fff;
+    border: 1px solid var(--line);
+    border-radius: 20px;
 }
 
 body.app .credit-tile-value {
-    color: var(--brand-strong);
+    color: var(--green-ink);
     font-size: 1.5em;
 }
 
 body.app .credit-tile-label {
-    color: var(--brand-darker); /* petit texte sur fond vert pâle : vert foncé pour le contraste */
+    color: var(--muted);
 }
 
 body.app .credit-tile.status-pending .credit-tile-value {
-    color: #1e40af;
+    color: var(--blue-ink);
 }
 
 body.app .progress-block progress {
-    accent-color: var(--brand);
+    accent-color: var(--green);
 }
 
-body.app .price-badge {
-    background-color: var(--brand-soft);
-    color: var(--brand-strong);
+body.app .co2-panel {
+    background-color: var(--green-soft);
+    border: none;
+    border-radius: 20px;
+}
+
+/* Compte : en-tête de profil et statistiques */
+body.app .profile-hero {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+body.app .profile-hero .avatar {
+    width: 64px;
+    height: 64px;
+    font-size: 1.6em;
+    border-color: #fff;
+    background-color: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+body.app .profile-hero p {
+    word-break: break-all;
+}
+
+body.app .profile-hero {
+    margin-top: 12px;
+}
+
+body.app .profile-name {
+    font-size: 1.2em;
+    font-weight: 700;
+}
+
+body.app .stat-cards {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+body.app .stat-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 14px 8px;
+    text-align: center;
+    box-shadow: var(--shadow);
+}
+
+body.app .stat-icon {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+}
+
+body.app .stat-icon-green { background-color: var(--green-soft); color: var(--green-ink); }
+body.app .stat-icon-blue { background-color: var(--blue-soft); color: var(--blue-ink); }
+body.app .stat-icon-yellow { background-color: var(--yellow-soft); color: #8a6d00; }
+
+body.app .stat-value {
+    font-size: 1.4em;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+body.app .stat-label {
+    font-size: 0.85em;
+    color: var(--muted);
 }
 
 /* Onglets de l'espace conducteur */
 body.app #app .sub-nav a[aria-current] {
-    color: var(--brand-strong);
-    border-bottom-color: var(--brand-strong);
+    color: var(--green-ink);
+    border-bottom-color: var(--green-ink);
 }
 
 /* Barre d'onglets en bas (mobile) */
@@ -676,11 +1064,23 @@ body.app #app .sub-nav a[aria-current] {
 
 @media (max-width: 700px) {
     body.app {
-        padding-bottom: calc(76px + env(safe-area-inset-bottom));
+        padding-bottom: calc(80px + env(safe-area-inset-bottom));
+    }
+
+    body.app .brand img {
+        height: 44px;
     }
 
     body.app .app-nav {
         display: none; /* remplacée par la barre d'onglets */
+    }
+
+    body.app .card {
+        padding: 16px;
+    }
+
+    body.app .page-hero h2 {
+        font-size: 1.3em;
     }
 
     body.app .tab-bar {
@@ -692,7 +1092,7 @@ body.app #app .sub-nav a[aria-current] {
         bottom: 0;
         z-index: 10;
         background: #fff;
-        border-top: 1px solid #e5e7eb;
+        border-top: 1px solid var(--line);
         box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
         padding-bottom: env(safe-area-inset-bottom);
     }
@@ -704,7 +1104,7 @@ body.app #app .sub-nav a[aria-current] {
         gap: 2px;
         min-height: 60px;
         padding: 8px 4px 6px;
-        color: #6b7280;
+        color: #6a7282;
         text-decoration: none;
         font-size: 0.75em;
         font-weight: 500;
@@ -721,10 +1121,19 @@ body.app #app .sub-nav a[aria-current] {
     }
 
     body.app .tab-bar a[aria-current] {
-        color: var(--brand-strong);
+        color: var(--green-ink);
+    }
+
+    body.app .tab-bar a[data-nav="passager"][aria-current] {
+        color: var(--blue-ink);
     }
 
     body.app .tab-bar a[aria-current] svg {
         stroke-width: 2.4;
     }
+}
+
+body.app .card > .hint,
+body.app form > .hint {
+    margin-bottom: 8px;
 }

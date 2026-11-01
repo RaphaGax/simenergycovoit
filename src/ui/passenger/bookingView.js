@@ -34,6 +34,7 @@ async function loadTrip(api, tripId) {
 }
 
 export async function render(root, { api, user }, { params, query }) {
+    root.classList.add('theme-passenger');
     const card = el('section', { class: 'card' }, el('h2', { text: 'Réserver ce trajet' }));
     root.append(card);
 

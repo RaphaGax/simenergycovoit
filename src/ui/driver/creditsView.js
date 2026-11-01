@@ -7,6 +7,7 @@ import {
 import { canComplete, isSubmittable } from '../../core/tripCompletion.js';
 import { seatsBooked } from '../../core/booking.js';
 import { el } from '../dom.js';
+import { pageHero } from '../components/pageHero.js';
 import { formatCo2, formatCredits, formatDateTime } from '../format.js';
 import { tripSummary, plural } from '../components/tripSummary.js';
 import { driverNav } from './driverNav.js';
@@ -150,6 +151,7 @@ export async function render(root, context, route = {}) {
         .sort((a, b) => a.departureAt.localeCompare(b.departureAt));
 
     root.append(
+        pageHero('Mes crédits carbone', 'Le CO₂ évité par vos trajets partagés, confirmé par vos passagers.'),
         driverNav('/conducteur/credits'),
         status,
         totalsSection(entries),

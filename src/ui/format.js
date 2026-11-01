@@ -27,3 +27,17 @@ export function formatDistance(km) {
 export function formatDateTime(iso) {
     return new Date(iso).toLocaleString('fr-CH', { dateStyle: 'medium', timeStyle: 'short' });
 }
+
+export function formatDate(iso) {
+    return new Date(iso).toLocaleDateString('fr-CH', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+export function formatTime(iso) {
+    return new Date(iso).toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' });
+}
+
+// Initiale d'un prénom pour l'avatar (« É » pour « élodie »), « ? » sans prénom.
+export function initial(name) {
+    const first = [...String(name ?? '').trim()][0];
+    return first ? first.toLocaleUpperCase('fr-CH') : '?';
+}

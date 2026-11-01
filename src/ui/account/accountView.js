@@ -1,5 +1,10 @@
 // « Mon compte » : informations, changement de mot de passe, suppression du compte (nLPD / RGPD).
 import { el } from '../dom.js';
+import { icon } from '../components/icons.js';
+import { pageHero } from '../components/pageHero.js';
+import { formatCo2, initial } from '../format.js';
+import { aggregateCredits } from '../../core/carbonCredits.js';
+import { BOOKING_STATUS } from '../../core/booking.js';
 import { formField, accountForm, checkSamePassword } from '../components/accountForm.js';
 
 function deletionSection(api) {
@@ -34,15 +39,43 @@ function deletionSection(api) {
     return section;
 }
 
-export function render(root, { api, user }) {
+function statCard(iconName, tone, value, label) {
+    return el('li', { class: 'stat-card' },
+        el('span', { class: `stat-icon stat-icon-${tone}` }, icon(iconName, { size: 20 })),
+        el('span', { class: 'stat-value', text: value }),
+        el('span', { class: 'stat-label', text: label }));
+}
+
+// Statistiques réelles du compte (aucun chiffre inventé) ; « — » si elles ne se chargent pas.
+async function statsSection(api) {
+    let values = ['—', '—', '—'];
+    try {
+        const [trips, bookings, credits] = await Promise.all([api.trips.mine(), api.bookings.mine(), api.credits.mine()]);
+        values = [
+            String(trips.length),
+            String(bookings.filter(({ booking }) => booking.status === BOOKING_STATUS.CONFIRMED).length),
+            formatCo2(aggregateCredits(credits).co2AvoidedG)
+        ];
+    } catch (error) {
+        console.error('Statistiques indisponibles :', error);
+    }
+    return el('ul', { class: 'stat-cards', 'aria-label': 'Mon activité' },
+        statCard('car', 'green', values[0], 'Trajets publiés'),
+        statCard('search', 'blue', values[1], 'Réservations'),
+        statCard('leaf', 'yellow', values[2], 'CO₂ évité (conducteur)'));
+}
+
+export async function render(root, { api, user }) {
     const passwordDone = el('p', { class: 'form-status', role: 'status' });
 
     root.append(
-        el('section', { class: 'card' },
-            el('h2', { text: 'Mon compte' }),
-            el('dl', { class: 'booking-recap' },
-                el('dt', { text: 'Prénom' }), el('dd', { text: user.name }),
-                el('dt', { text: 'E-mail' }), el('dd', { text: user.email }))),
+        pageHero('Mon compte', null,
+            el('div', { class: 'profile-hero' },
+                el('span', { class: 'avatar', 'aria-hidden': 'true', text: initial(user.name) }),
+                el('div', {},
+                    el('p', { class: 'profile-name', text: user.name }),
+                    el('p', { text: user.email })))),
+        await statsSection(api),
         accountForm({
             prefix: 'password',
             title: 'Changer de mot de passe',

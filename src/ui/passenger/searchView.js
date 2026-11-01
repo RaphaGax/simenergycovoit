@@ -11,7 +11,8 @@ import { MAX_SEATS } from '../../core/trips.js';
 import { el } from '../dom.js';
 import { navigate, loginPath } from '../router.js';
 import { formatCo2, formatDistance } from '../format.js';
-import { tripSummary, priceBadge, plural } from '../components/tripSummary.js';
+import { tripSummary, tripSummaryWithDriver, priceBadge, co2Badge, plural } from '../components/tripSummary.js';
+import { pageHero } from '../components/pageHero.js';
 import { createPlaceInput, coordsToParam, paramToCoords } from '../components/placeInput.js';
 
 function criteriaFromQuery(query) {
@@ -76,11 +77,11 @@ function resultItem(result, criteria) {
             ? 'Sur la route du conducteur'
             : `Détour du conducteur : +${Math.round(result.detourMin)} min (${formatDistance(result.detourKm)})` }));
     }
-    details.push(el('span', { class: 'hint', text: `Votre trajet évite ${formatCo2(co2)} de CO₂` }));
     return el('li', { class: 'trip-item' },
-        tripSummary(trip, ...details),
+        tripSummaryWithDriver(trip, result.driverName, ...details),
         el('div', { class: 'trip-actions' },
             priceBadge(),
+            co2Badge(co2),
             el('a', { class: 'button-link', href: bookingHref(result, criteria), text: 'Réserver' })));
 }
 
@@ -170,11 +171,11 @@ export async function render(root, { api, user, ors }, { query }) {
         navigate(`/passager/recherche?${params}`);
     });
 
-    root.append(el('section', { class: 'card' },
+    root.classList.add('theme-passenger');
+    root.append(pageHero('Je trouve mon EcoVroom', 'Tous les trajets sont gratuits pour les passagers : 0 CHF.'),
+        el('section', { class: 'card' },
         el('h2', { text: 'Rechercher un trajet' }),
-        el('p', { class: 'hint', text: ors
-            ? 'Tous les trajets sont gratuits pour les passagers. Choisissez les lieux dans les suggestions pour trouver les trajets qui passent près de chez vous.'
-            : 'Tous les trajets sont gratuits pour les passagers.' }),
+        ...(ors ? [el('p', { class: 'hint', text: 'Choisissez les lieux dans les suggestions pour trouver les trajets qui passent près de chez vous.' })] : []),
         form));
 
     const resultsSlot = el('div');

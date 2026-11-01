@@ -80,10 +80,13 @@ Application de covoiturage basée sur l'algorithme VROOM.
   (réservation confirmée, trajet pas encore parti).
 
 ## Design
-- Thème de la maquette mobile du développeur (NativeScript + Tailwind) : vert `#16a34a` pour la barre
-  de titre, `#15803d` pour les boutons et petits textes blancs (contraste), tuiles `#dcfce7`, barre
-  d'onglets en bas sur mobile (`index.html`, `.tab-bar`). Styles dans `src/ui/app.css`, limités à
-  `body.app` : `styles.css` et `fleet.html` gardent l'apparence d'origine du simulateur.
+- D'après la maquette mobile du développeur (colibri vert → bleu) : en-tête blanc avec logo
+  (`src/ui/assets/`), bandeaux en dégradé `#33873D → #0880B0` (`components/pageHero.js`), cartes blanches
+  arrondies (24 px), bouton vert `#2F8238` (conducteur) et bleu `#0A78B0` (parcours passager, `.theme-passenger`),
+  icônes au trait en SVG inline (`components/icons.js`), barre d'onglets en bas sur mobile (`index.html`, `.tab-bar`).
+- Textes blancs et petits textes : contraste ≥ 4,5:1 ; teintes vives `#3D9A44`/`#219DD8` réservées au décor.
+- Police système, aucune ressource externe. Aucun chiffre ni avis inventé (prix toujours 0 CHF, avatars = initiale).
+- Styles dans `src/ui/app.css`, limités à `body.app` : `styles.css` et `fleet.html` gardent l'apparence d'origine.
 
 ## Commandes
 - Tests : `npm test` (exécutant de tests intégré à Node, Node 22.13+). Les tests serveur

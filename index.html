@@ -3,17 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#16a34a">
+    <meta name="theme-color" content="#ffffff">
+    <link rel="icon" type="image/png" sizes="32x32" href="./src/ui/assets/icon-32.png">
+    <link rel="apple-touch-icon" href="./src/ui/assets/icon-180.png">
     <title>EcoVroom — Covoiturage durable</title>
     <link rel="stylesheet" href="./styles.css">
     <link rel="stylesheet" href="./src/ui/app.css">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 <body class="app">
     <div class="container">
         <header>
-            <h1>EcoVroom</h1>
-            <p>Covoiturage durable : 0 CHF pour les passagers, crédits carbone pour les conducteurs.</p>
+            <h1><a href="#/" class="brand"><img src="./src/ui/assets/logo.png" alt="EcoVroom" width="227" height="215"></a></h1>
+            <p class="tagline">Covoiturage durable : 0 CHF pour les passagers, crédits carbone pour les conducteurs.</p>
             <div id="account" class="account" aria-live="polite"></div>
             <nav class="app-nav" aria-label="Parcours">
                 <a href="#/passager/recherche" data-nav="passager">Passager</a>

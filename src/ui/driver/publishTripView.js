@@ -10,6 +10,7 @@ import { tripSummary, plural } from '../components/tripSummary.js';
 import { createPlaceInput } from '../components/placeInput.js';
 import { createItineraryPanel } from './itineraryPanel.js';
 import { createWazeButton } from '../components/wazeButton.js';
+import { pageHero } from '../components/pageHero.js';
 import { driverDestination } from '../../core/navigation.js';
 import { driverNav } from './driverNav.js';
 import { createCo2EstimatePanel } from './co2EstimatePanel.js';
@@ -214,6 +215,7 @@ export async function render(root, { api, ors }) {
     });
 
     root.append(
+        pageHero('Je partage mon trajet', 'Publiez votre trajet : vos passagers voyagent gratuitement, vous gagnez des crédits carbone.'),
         driverNav('/conducteur/publier'),
         el('section', { class: 'card' },
             el('h2', { text: 'Publier un trajet' }),
