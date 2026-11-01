@@ -2,11 +2,14 @@
 
 Application de covoiturage basée sur l'algorithme VROOM.
 - Passagers : trajets 100 % gratuits (0 CHF).
-- Conducteurs : récompensés par des crédits carbone validés et des partenariats RSE (Scope 3).
+- Conducteurs et passagers (des « aventuriers ») : récompensés par des VroomPoints, la gamification est un point fort.
+- Pas encore de certification carbone : l'interface ne parle JAMAIS de « crédits carbone ». Les VroomPoints
+  pourront plus tard être reliés à de vrais crédits (partenariats RSE, Scope 3) : le CO₂ évité exact reste
+  enregistré trajet par trajet (table `credits`, `src/core/carbonCredits.js`, usage interne uniquement).
 
 ## Périmètre actuel
 - Focus sur les parcours utilisateurs : Passager (recherche, réservation 0 CHF, confirmation)
-  et Conducteur (publication, estimation CO₂, suivi des crédits carbone).
+  et Conducteur (publication, estimation CO₂), avec les VroomPoints (`#/vroompoints`).
 - Ne développer AUCUNE nouvelle fonctionnalité de gestion de parc ni de tableau de bord B2B/entreprise/ville.
 
 ## Code du parc automobile : à préserver
@@ -19,14 +22,14 @@ Application de covoiturage basée sur l'algorithme VROOM.
 
 ## Architecture
 - JavaScript moderne, ES Modules (`import` / `export`), pas de bundler, aucune dépendance npm.
-- `src/core/` : fonctions de calcul pures (VROOM, CO₂, crédits, règles de réservation). Aucun accès à
+- `src/core/` : fonctions de calcul pures (VROOM, CO₂, VroomPoints, crédits, règles de réservation). Aucun accès à
   `document`, `window`, `fetch` ou `localStorage`. N'importe ni `src/fleet/`, ni `src/ui/`, ni `server/`.
   Partagé par le navigateur et le serveur : une règle métier s'écrit une seule fois, ici.
 - `src/fleet/` : peut importer `src/core/`. `src/fleet/core/` est pur, le DOM est dans `src/fleet/ui/`.
 - `src/ui/` (parcours utilisateurs) n'importe jamais `src/fleet/`.
 - Dépendances à sens unique côté client : `ui → services → core`.
 - `server/` : serveur Node (`node:http`, `node:sqlite`). Il importe `src/core/` (et `src/services/orsClient.js`),
-  jamais `src/ui/`. Le serveur est seul juge : prix 0 CHF, places, droits d'accès, crédits.
+  jamais `src/ui/`. Le serveur est seul juge : prix 0 CHF, places, droits d'accès, VroomPoints.
 
 ## Serveur, données et authentification
 - Données partagées en SQLite (`server/db.js`) ; aucune donnée métier dans `localStorage`.
@@ -39,7 +42,11 @@ Application de covoiturage basée sur l'algorithme VROOM.
   depuis la fin. 0 par défaut (en-tête ignoré), 1 sur Render.
 - Ne jamais renvoyer l'e-mail d'un autre utilisateur : seulement son prénom (`driverName`, `passengerName`).
 - Une réservation n'est visible que par son passager et par le conducteur du trajet (404 sinon).
-- Crédits carbone : double confirmation. Le conducteur confirme le trajet effectué, chaque passager
+- VroomPoints (`src/core/vroomPoints.js`, `GET /api/me/points`, calculés à la volée) : 1 point = 1 kg de CO₂
+  évité ; rien sous 3 km ; maximum = CO₂ évité voiture pleine ; courbe de Pareto (moitié pleine = 80 %) ;
+  50 % conducteur, 50 % passagers au prorata des places ; entiers, au moins 1 par participant ; niveaux
+  Explorateur, Éclaireur (25), Pionnier (150), Légende (500). Acquis seulement après double confirmation.
+- Double confirmation (VroomPoints et registre interne de CO₂). Le conducteur confirme le trajet effectué, chaque passager
   confirme ou conteste dans les 7 jours (`src/core/tripProof.js`). Seules les places confirmées par
   leur passager comptent ; soumission possible quand toutes les réponses sont arrivées ou le délai
   passé (`isSubmittable`). Une entrée soumise ou validée n'est jamais recalculée.

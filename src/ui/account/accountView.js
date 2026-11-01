@@ -2,8 +2,7 @@
 import { el } from '../dom.js';
 import { icon } from '../components/icons.js';
 import { pageHero } from '../components/pageHero.js';
-import { formatCo2, initial } from '../format.js';
-import { aggregateCredits } from '../../core/carbonCredits.js';
+import { initial } from '../format.js';
 import { BOOKING_STATUS } from '../../core/booking.js';
 import { formField, accountForm, checkSamePassword } from '../components/accountForm.js';
 
@@ -19,7 +18,7 @@ function deletionSection(api) {
             el('ul', { class: 'plain-list' },
                 el('li', { text: 'votre e-mail, votre prénom et votre mot de passe sont effacés ;' }),
                 el('li', { text: 'vos réservations à venir sont annulées et vos trajets à venir sans passager supprimés ;' }),
-                el('li', { text: 'vos trajets passés restent visibles, sous « Compte supprimé », pour les autres participants (preuves de trajet, crédits carbone) ; vos points de prise en charge sont effacés.' })),
+                el('li', { text: 'vos trajets passés restent visibles, sous « Compte supprimé », pour les autres participants (preuves de trajet, VroomPoints) ; vos points de prise en charge sont effacés.' })),
             el('p', { class: 'hint', text: 'Impossible tant que des passagers ont réservé l’un de vos trajets à venir.' })
         ],
         fields: [formField('delete-password', 'Mot de passe actuel', { type: 'password', autocomplete: 'current-password', required: '' })],
@@ -39,30 +38,33 @@ function deletionSection(api) {
     return section;
 }
 
-function statCard(iconName, tone, value, label) {
-    return el('li', { class: 'stat-card' },
+function statCard(iconName, tone, value, label, href) {
+    const content = [
         el('span', { class: `stat-icon stat-icon-${tone}` }, icon(iconName, { size: 20 })),
         el('span', { class: 'stat-value', text: value }),
-        el('span', { class: 'stat-label', text: label }));
+        el('span', { class: 'stat-label', text: label })];
+    return el('li', { class: 'stat-card' }, ...(href ? [el('a', { class: 'stat-link', href }, ...content)] : content));
 }
 
 // Statistiques réelles du compte (aucun chiffre inventé) ; « — » si elles ne se chargent pas.
 async function statsSection(api) {
     let values = ['—', '—', '—'];
+    let levelName = '';
     try {
-        const [trips, bookings, credits] = await Promise.all([api.trips.mine(), api.bookings.mine(), api.credits.mine()]);
+        const [trips, bookings, points] = await Promise.all([api.trips.mine(), api.bookings.mine(), api.points()]);
         values = [
             String(trips.length),
             String(bookings.filter(({ booking }) => booking.status === BOOKING_STATUS.CONFIRMED).length),
-            formatCo2(aggregateCredits(credits).co2AvoidedG)
+            String(points.earned)
         ];
+        levelName = points.level.name;
     } catch (error) {
         console.error('Statistiques indisponibles :', error);
     }
     return el('ul', { class: 'stat-cards', 'aria-label': 'Mon activité' },
         statCard('car', 'green', values[0], 'Trajets publiés'),
         statCard('search', 'blue', values[1], 'Réservations'),
-        statCard('leaf', 'yellow', values[2], 'CO₂ évité (conducteur)'));
+        statCard('star', 'yellow', values[2], levelName ? `VroomPoints · ${levelName}` : 'VroomPoints', '#/vroompoints'));
 }
 
 export async function render(root, { api, user }) {

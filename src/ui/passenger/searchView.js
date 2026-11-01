@@ -123,7 +123,7 @@ function myBookingsSection(entries) {
     if (toConfirm.length) {
         section.append(
             el('h3', { text: 'Trajets à confirmer' }),
-            el('p', { class: 'hint', text: 'Indiquez si ces trajets ont bien eu lieu : votre réponse permet au conducteur d’obtenir ses crédits carbone.' }),
+            el('p', { class: 'hint', text: 'Indiquez si ces trajets ont bien eu lieu : votre confirmation vous rapporte des VroomPoints, ainsi qu’au conducteur.' }),
             el('ul', { class: 'trip-list' }, ...toConfirm.map(entry => item(entry, 'Répondre'))));
     }
     if (upcoming.length) {

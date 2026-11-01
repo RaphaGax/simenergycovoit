@@ -14,7 +14,7 @@ export function render(root, { user } = {}) {
         el('section', { class: 'home-hero' },
             el('img', { src: './src/ui/assets/logo.png', alt: '', width: '227', height: '215' }),
             el('p', { class: 'slogan', text: 'Ensemble, nous allons plus loin' }),
-            el('p', { class: 'promise', text: '0 CHF pour les passagers, crédits carbone pour les conducteurs.' })),
+            el('p', { class: 'promise', text: '0 CHF pour les passagers, des VroomPoints pour tous les aventuriers.' })),
         el('section', { class: 'card home-sheet' },
             el('h2', { text: 'Que souhaitez-vous faire ?' }),
             el('div', { class: 'choice-list' },
@@ -24,7 +24,7 @@ export function render(root, { user } = {}) {
                 }),
                 choice({
                     href: '#/conducteur/publier', className: 'choice-driver', iconName: 'car',
-                    title: 'Je partage mon trajet', text: 'Estimez le CO₂ évité, gagnez des crédits carbone.'
+                    title: 'Je partage mon trajet', text: 'Estimez le CO₂ évité, gagnez des VroomPoints.'
                 })),
             el('p', { class: 'home-account' }, user
                 ? el('a', { href: '#/compte', text: 'Mon compte' })

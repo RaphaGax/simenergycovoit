@@ -10,6 +10,7 @@ import {
 import { completeTrip, refreshCreditEntry, isSubmittable } from '../src/core/tripCompletion.js';
 import { recordPassengerProof, summarizeProof } from '../src/core/tripProof.js';
 import { submitForValidation } from '../src/core/carbonCredits.js';
+import { driverEntry, passengerEntry, totalPoints, levelFor } from '../src/core/vroomPoints.js';
 import { isValidCoords } from '../src/core/geo.js';
 import { buildTripProblem } from '../src/core/vroom/buildTripProblem.js';
 import { parseTripSolution } from '../src/core/vroom/parseTripSolution.js';
@@ -414,6 +415,32 @@ export function createApp({
                         .map(b => ({ ...b, passengerName: names.get(b.passengerId) ?? '' }))
                 }))
             };
+        }],
+        // VroomPoints du joueur, comme conducteur et comme passager (calculés à la volée : ils ne
+        // dépendent que des trajets, des réservations et des réponses des passagers).
+        ['GET', '/api/me/points', ctx => {
+            const user = requireUser(ctx);
+            const at = now();
+            const driverTrips = db.trips.byDriver(user.id);
+            const ownBookings = db.bookings.byPassenger(user.id);
+            const trips = new Map(driverTrips.map(trip => [trip.id, trip]));
+            for (const booking of ownBookings) {
+                if (!trips.has(booking.tripId)) trips.set(booking.tripId, db.trips.get(booking.tripId));
+            }
+            const allBookings = db.bookings.byTrips([...trips.keys()]);
+            const bookingsOf = tripId => allBookings.filter(b => b.tripId === tripId);
+            const entries = [
+                ...driverTrips.map(trip => driverEntry(trip, bookingsOf(trip.id), at)),
+                ...ownBookings.map(booking => {
+                    const trip = trips.get(booking.tripId);
+                    return trip ? passengerEntry(booking, trip, bookingsOf(trip.id), at) : null;
+                })
+            ].filter(Boolean).map(entry => {
+                const trip = trips.get(entry.tripId);
+                return { ...entry, trip: { id: trip.id, origin: trip.origin, destination: trip.destination, departureAt: trip.departureAt } };
+            }).sort((a, b) => b.trip.departureAt.localeCompare(a.trip.departureAt));
+            const totals = totalPoints(entries);
+            return { ...totals, level: levelFor(totals.earned), entries };
         }],
         ['GET', '/api/me/credits', ctx => {
             const user = requireUser(ctx);

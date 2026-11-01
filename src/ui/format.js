@@ -16,8 +16,9 @@ export function formatCo2(grams) {
     return grams < 1000 ? `${number(grams, 0)} g` : `${number(grams / 1000, 1)} kg`;
 }
 
-export function formatCredits(credits) {
-    return `${number(credits, 4)} crédit${credits >= 2 ? 's' : ''}`;
+// Nombre entier de VroomPoints : « 1 VroomPoint », « 1 250 VroomPoints ».
+export function formatPoints(points) {
+    return `${number(points, 0)} VroomPoint${Math.abs(points) >= 2 ? 's' : ''}`;
 }
 
 export function formatDistance(km) {

@@ -1,7 +1,7 @@
 # EcoVroom
 
-Covoiturage durable : trajets **gratuits pour les passagers (0 CHF)**, conducteurs récompensés par des
-**crédits carbone**. Les itinéraires et l'ordre des prises en charge sont calculés avec
+Covoiturage durable : trajets **gratuits pour les passagers (0 CHF)**, conducteurs et passagers récompensés
+par des **VroomPoints** (1 point = 1 kg de CO₂ évité, calcul EcoVroom ; pas encore des crédits carbone certifiés). Les itinéraires et l'ordre des prises en charge sont calculés avec
 [openrouteservice](https://openrouteservice.org) et l'algorithme d'optimisation VROOM.
 
 ## Démarrer

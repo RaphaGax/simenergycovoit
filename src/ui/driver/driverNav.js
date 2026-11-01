@@ -3,7 +3,7 @@ import { el } from '../dom.js';
 
 const TABS = [
     { path: '/conducteur/publier', label: 'Publier un trajet' },
-    { path: '/conducteur/credits', label: 'Mes crédits carbone' }
+    { path: '/vroompoints', label: 'Mes VroomPoints' }
 ];
 
 export function driverNav(currentPath) {

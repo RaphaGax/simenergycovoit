@@ -16,7 +16,7 @@ const PROOF_LABELS = {
 };
 
 // Après le départ : le passager confirme (ou conteste) que le trajet a eu lieu. Sa réponse sert
-// de preuve pour les crédits carbone du conducteur ; « non » demande un second clic.
+// de preuve pour les VroomPoints (les siens et ceux du conducteur) ; « non » demande un second clic.
 function proofSection(booking, trip, onAnswer) {
     const section = el('div', { class: 'proof-block' }, el('h3', { text: 'Le trajet a-t-il eu lieu ?' }));
     if (booking.passengerProof) {
@@ -56,7 +56,7 @@ function proofSection(booking, trip, onAnswer) {
     });
     const deadline = proofDeadline(trip).toLocaleDateString('fr-CH', { day: 'numeric', month: 'long' });
     section.append(
-        el('p', { class: 'hint', text: `Votre réponse permet au conducteur d’obtenir ses crédits carbone. Vous pouvez répondre jusqu’au ${deadline}.` }),
+        el('p', { class: 'hint', text: `Confirmez pour gagner vos VroomPoints, et faire gagner les siens au conducteur. Vous pouvez répondre jusqu’au ${deadline}.` }),
         el('div', { class: 'button-group' }, yes, no),
         status);
     return section;

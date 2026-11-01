@@ -582,6 +582,18 @@ body.app .link-button:hover {
     color: var(--muted);
 }
 
+body.app .account .link-button {
+    min-height: 0;
+    padding: 8px 4px;
+    font-weight: 500;
+}
+
+body.app .account {
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    margin-left: auto;
+}
+
 body.app .app-nav {
     order: 2;
     margin: 0;
@@ -1136,4 +1148,122 @@ body.app #app .sub-nav a[aria-current] {
 body.app .card > .hint,
 body.app form > .hint {
     margin-bottom: 8px;
+}
+
+/* VroomPoints : niveau d'aventurier, total, historique */
+body.app .level-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+body.app .level-icon {
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background-color: var(--yellow-soft);
+    color: #8a6d00;
+}
+
+body.app .level-rank {
+    color: var(--muted);
+    font-size: 0.9em;
+}
+
+body.app .level-name {
+    margin: 0;
+}
+
+body.app .points-total {
+    margin: 14px 0 2px;
+    color: var(--green-ink);
+    font-size: 1.1em;
+    font-weight: 600;
+}
+
+body.app .points-total strong {
+    font-size: 2.4em;
+    line-height: 1;
+}
+
+body.app .points-pending {
+    color: var(--blue-ink);
+    font-weight: 600;
+}
+
+body.app .points-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+body.app .points-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+}
+
+body.app .points-item-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+body.app .points-role {
+    font-size: 0.8em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+}
+
+body.app .points-state {
+    font-size: 0.9em;
+    color: var(--muted);
+}
+
+body.app .points-earned .points-state {
+    color: var(--green-dark);
+}
+
+body.app .points-amount {
+    flex: none;
+    min-width: 56px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.1em;
+    background-color: var(--green-soft);
+    color: var(--green-dark);
+}
+
+body.app .points-pending .points-amount {
+    background-color: var(--blue-soft);
+    color: var(--blue-dark);
+}
+
+body.app .rules summary {
+    cursor: pointer;
+    font-weight: 700;
+}
+
+body.app .rules ul {
+    margin-top: 10px;
+}
+
+body.app .stat-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    text-decoration: none;
 }

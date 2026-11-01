@@ -9,7 +9,7 @@ import * as searchView from './ui/passenger/searchView.js';
 import * as bookingView from './ui/passenger/bookingView.js';
 import * as confirmationView from './ui/passenger/confirmationView.js';
 import * as publishTripView from './ui/driver/publishTripView.js';
-import * as creditsView from './ui/driver/creditsView.js';
+import * as pointsView from './ui/points/pointsView.js';
 import * as accountView from './ui/account/accountView.js';
 import * as forgotPasswordView from './ui/account/forgotPasswordView.js';
 import * as resetPasswordView from './ui/account/resetPasswordView.js';
@@ -24,7 +24,9 @@ const routes = [
     { path: '/passager/reserver/:tripId', section: 'passager', title: 'Réserver', view: bookingView },
     { path: '/passager/reservation/:bookingId', section: 'passager', title: 'Ma réservation', view: confirmationView, auth: true },
     { path: '/conducteur/publier', section: 'conducteur', title: 'Publier un trajet', view: publishTripView, auth: true },
-    { path: '/conducteur/credits', section: 'conducteur', title: 'Mes crédits carbone', view: creditsView, auth: true }
+    { path: '/vroompoints', section: 'compte', title: 'Mes VroomPoints', view: pointsView, auth: true },
+    // Ancienne adresse (liens déjà partagés).
+    { path: '/conducteur/credits', section: 'compte', title: 'Mes VroomPoints', view: pointsView, auth: true }
 ];
 
 function renderAccount(container, { api, user }) {

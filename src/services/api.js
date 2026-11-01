@@ -84,6 +84,8 @@ export function createApi({ fetch = globalThis.fetch.bind(globalThis), baseUrl =
             // [{ booking, trip }]
             mine: async () => (await get('/api/me/bookings')).bookings
         },
+        // { earned, pending, level, entries: [{ tripId, role, points, status, awaiting, trip }] }
+        points: () => get('/api/me/points'),
         credits: {
             mine: async () => (await get('/api/me/credits')).entries,
             submit: async () => (await post('/api/me/credits/submit')).submitted

@@ -72,7 +72,7 @@ function renderTripList(container, entries, { api, ors }) {
         const state = trip.completedAt
             ? el('span', { class: 'status-badge status-validated', text: 'Effectué ✓' })
             : departed
-                ? el('a', { href: '#/conducteur/credits', text: 'Parti : à confirmer pour vos crédits →' })
+                ? el('a', { href: '#/vroompoints', text: 'Parti : à confirmer pour gagner vos VroomPoints →' })
                 : null;
         const item = el('li', { class: 'trip-item' }, tripSummary(trip,
             ...(state ? [state] : []),
@@ -215,7 +215,7 @@ export async function render(root, { api, ors }) {
     });
 
     root.append(
-        pageHero('Je partage mon trajet', 'Publiez votre trajet : vos passagers voyagent gratuitement, vous gagnez des crédits carbone.'),
+        pageHero('Je partage mon trajet', 'Publiez votre trajet : vos passagers voyagent gratuitement, vous gagnez des VroomPoints.'),
         driverNav('/conducteur/publier'),
         el('section', { class: 'card' },
             el('h2', { text: 'Publier un trajet' }),
