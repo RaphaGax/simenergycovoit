@@ -494,3 +494,237 @@
 .danger-zone h2 {
     color: #b91c1c;
 }
+
+/* ==========================================================================
+   Thème EcoVroom, d'après la maquette de l'application mobile (NativeScript + Tailwind) :
+   barre de titre verte, boutons verts, tuiles vert pâle, cartes blanches arrondies,
+   barre d'onglets en bas sur mobile. Limité à l'application (body.app) : le simulateur
+   de parc (fleet.html) garde son apparence d'origine.
+   Couleurs Tailwind de la maquette ; le vert 700 sert aux textes blancs sur petits
+   éléments (contraste suffisant), le vert 600 aux grandes surfaces.
+   ========================================================================== */
+body.app {
+    --brand: #16a34a;        /* green-600 : barre de titre */
+    --brand-strong: #15803d; /* green-700 : boutons, liens, en-têtes de tableau */
+    --brand-darker: #166534; /* green-800 : survol */
+    --brand-soft: #dcfce7;   /* green-100 : tuiles */
+    --brand-softer: #f0fdf4; /* green-50 */
+    --ink: #1f2937;          /* gray-800 : titres */
+    --muted: #4b5563;        /* gray-600 : textes secondaires */
+    background-color: #f3f4f6;
+    color: var(--ink);
+    padding: 0 0 15px;
+}
+
+/* Barre de titre verte */
+body.app header {
+    background: var(--brand);
+    color: #fff;
+    margin: 0 -15px 10px;
+    padding: 18px 15px 16px;
+    border-radius: 0 0 16px 16px;
+}
+
+body.app .container {
+    padding: 0 15px;
+}
+
+body.app header h1 {
+    color: #fff;
+    letter-spacing: 0.5px;
+}
+
+body.app header p {
+    color: var(--brand-soft);
+}
+
+body.app .account,
+body.app .account span {
+    color: #fff;
+}
+
+body.app .account-link,
+body.app .link-button {
+    color: #fff;
+}
+
+body.app .app-nav a {
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.8);
+}
+
+body.app .app-nav a[aria-current] {
+    background-color: #fff;
+    color: var(--brand-strong);
+}
+
+/* Titres, liens, cartes */
+body.app h2,
+body.app h3 {
+    color: var(--ink);
+    font-weight: 700;
+}
+
+body.app #app a:not(.button-link) {
+    color: var(--brand-strong);
+}
+
+body.app .card {
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+body.app .card:hover {
+    transform: none; /* pas d'effet de survol sur les cartes de l'application */
+}
+
+/* Boutons verts */
+body.app button,
+body.app .button-link {
+    background-color: var(--brand-strong);
+    color: #fff;
+    border-radius: 8px;
+}
+
+body.app button:hover,
+body.app .button-link:hover {
+    background-color: var(--brand-darker);
+}
+
+body.app button:focus-visible,
+body.app a:focus-visible,
+body.app input:focus-visible,
+body.app select:focus-visible {
+    outline: 3px solid #86efac;
+    outline-offset: 2px;
+}
+
+body.app .button-secondary {
+    background-color: #fff;
+    color: #b91c1c;
+}
+
+body.app .button-secondary:hover {
+    background-color: #fef2f2;
+}
+
+body.app .button-secondary-neutral {
+    background-color: #fff;
+    color: var(--brand-strong);
+    border-color: var(--brand-strong);
+}
+
+body.app .button-secondary-neutral:hover {
+    background-color: var(--brand-softer);
+}
+
+body.app .link-button,
+body.app .link-button:hover {
+    background: none;
+}
+
+/* Champs */
+body.app input:focus,
+body.app select:focus {
+    border-color: var(--brand-strong);
+    outline: none;
+}
+
+/* Tableaux */
+body.app th {
+    background-color: var(--brand-strong);
+}
+
+/* Tuiles vert pâle (comme les statistiques de la maquette) */
+body.app .credit-tile {
+    background-color: var(--brand-soft);
+    border-color: transparent;
+}
+
+body.app .credit-tile-value {
+    color: var(--brand-strong);
+    font-size: 1.5em;
+}
+
+body.app .credit-tile-label {
+    color: var(--brand-darker); /* petit texte sur fond vert pâle : vert foncé pour le contraste */
+}
+
+body.app .credit-tile.status-pending .credit-tile-value {
+    color: #1e40af;
+}
+
+body.app .progress-block progress {
+    accent-color: var(--brand);
+}
+
+body.app .price-badge {
+    background-color: var(--brand-soft);
+    color: var(--brand-strong);
+}
+
+/* Onglets de l'espace conducteur */
+body.app #app .sub-nav a[aria-current] {
+    color: var(--brand-strong);
+    border-bottom-color: var(--brand-strong);
+}
+
+/* Barre d'onglets en bas (mobile) */
+.tab-bar {
+    display: none;
+}
+
+@media (max-width: 700px) {
+    body.app {
+        padding-bottom: calc(76px + env(safe-area-inset-bottom));
+    }
+
+    body.app .app-nav {
+        display: none; /* remplacée par la barre d'onglets */
+    }
+
+    body.app .tab-bar {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 10;
+        background: #fff;
+        border-top: 1px solid #e5e7eb;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    body.app .tab-bar a {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        min-height: 60px;
+        padding: 8px 4px 6px;
+        color: #6b7280;
+        text-decoration: none;
+        font-size: 0.75em;
+        font-weight: 500;
+    }
+
+    body.app .tab-bar svg {
+        width: 26px;
+        height: 26px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    body.app .tab-bar a[aria-current] {
+        color: var(--brand-strong);
+    }
+
+    body.app .tab-bar a[aria-current] svg {
+        stroke-width: 2.4;
+    }
+}

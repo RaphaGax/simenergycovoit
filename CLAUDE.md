@@ -79,6 +79,12 @@ Application de covoiturage basée sur l'algorithme VROOM.
 - Conducteur : arrivée du trajet (tant qu'il n'est pas « effectué ») ; passager : point de rendez-vous
   (réservation confirmée, trajet pas encore parti).
 
+## Design
+- Thème de la maquette mobile du développeur (NativeScript + Tailwind) : vert `#16a34a` pour la barre
+  de titre, `#15803d` pour les boutons et petits textes blancs (contraste), tuiles `#dcfce7`, barre
+  d'onglets en bas sur mobile (`index.html`, `.tab-bar`). Styles dans `src/ui/app.css`, limités à
+  `body.app` : `styles.css` et `fleet.html` gardent l'apparence d'origine du simulateur.
+
 ## Commandes
 - Tests : `npm test` (exécutant de tests intégré à Node, Node 22.13+). Les tests serveur
   (`tests/server/`) démarrent un vrai serveur sur une base en mémoire.

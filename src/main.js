@@ -15,11 +15,11 @@ import * as forgotPasswordView from './ui/account/forgotPasswordView.js';
 import * as resetPasswordView from './ui/account/resetPasswordView.js';
 
 const routes = [
-    { path: '/', title: 'Accueil', view: homeView },
+    { path: '/', section: 'accueil', title: 'Accueil', view: homeView },
     { path: '/connexion', title: 'Connexion', view: loginView },
     { path: '/mot-de-passe/oublie', title: 'Mot de passe oublié', view: forgotPasswordView },
     { path: '/mot-de-passe/nouveau', title: 'Nouveau mot de passe', view: resetPasswordView },
-    { path: '/compte', title: 'Mon compte', view: accountView, auth: true },
+    { path: '/compte', section: 'compte', title: 'Mon compte', view: accountView, auth: true },
     { path: '/passager/recherche', section: 'passager', title: 'Rechercher un trajet', view: searchView },
     { path: '/passager/reserver/:tripId', section: 'passager', title: 'Réserver', view: bookingView },
     { path: '/passager/reservation/:bookingId', section: 'passager', title: 'Ma réservation', view: confirmationView, auth: true },
