@@ -210,6 +210,14 @@ test('expéditeur : console en développement, Resend avec clé et expéditeur, 
     assert.equal(calls[0].url, 'https://api.resend.com/emails');
     assert.equal(calls[0].options.headers.Authorization, 'Bearer cle');
     assert.deepEqual(JSON.parse(calls[0].options.body), { from: 'EcoVroom <noreply@ecovroom.ch>', to: ['a@b.ch'], subject: 'S', text: 'T' });
+    const refused = createMailer({ RESEND_API_KEY: 'cle', MAIL_FROM: 'EcoVroom <noreply@ecovroom.ch>' }, {
+        fetch: async () => ({ ok: false, status: 403, json: async () => ({ message: 'The ecovroom.ch domain is not verified.' }) })
+    });
+    await assert.rejects(refused.send({ to: 'a@b.ch', subject: 'S', text: 'T' }), /Resend \(403\) : The ecovroom\.ch domain is not verified\./);
+    const unreadable = createMailer({ RESEND_API_KEY: 'cle', MAIL_FROM: 'x <a@b.ch>' }, {
+        fetch: async () => ({ ok: false, status: 500, json: async () => { throw new SyntaxError('vide'); } })
+    });
+    await assert.rejects(unreadable.send({ to: 'a@b.ch', subject: 'S', text: 'T' }), /^Error: Envoi d'e-mail refusé par Resend \(500\)\.$/);
     assert.equal(createMailer({ RESEND_API_KEY: 'cle' }), null);
     assert.equal(createMailer({}), null);
 

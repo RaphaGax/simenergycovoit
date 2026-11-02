@@ -23,7 +23,11 @@ export function createMailer(env = process.env, { fetch = globalThis.fetch, log 
                     body: JSON.stringify({ from: env.MAIL_FROM, to: [to], subject, text }),
                     signal: AbortSignal.timeout(10000)
                 });
-                if (!response.ok) throw new Error(`Envoi d'e-mail refusé (${response.status}).`);
+                if (!response.ok) {
+                    // Resend explique le refus ({ message }) : domaine non vérifié, expéditeur invalide, clé refusée…
+                    const detail = await response.json().then(body => body?.message, () => null);
+                    throw new Error(`Envoi d'e-mail refusé par Resend (${response.status})${detail ? ` : ${detail}` : ''}.`);
+                }
             }
         };
     }

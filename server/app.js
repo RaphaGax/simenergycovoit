@@ -183,7 +183,11 @@ export function createApp({
                         + `Pour choisir un nouveau mot de passe, ouvrez ce lien (valable ${RESET_TOKEN_MINUTES} minutes, une seule fois) :\n`
                         + `${link}\n\n`
                         + 'Si vous n’êtes pas à l’origine de cette demande, ignorez ce message : votre mot de passe reste inchangé.\n\nEcoVroom'
-                }).catch(error => console.error('Envoi du lien de réinitialisation impossible :', error.message));
+                }).then(() => console.log('Mot de passe oublié : lien envoyé.'),
+                    error => console.error('Mot de passe oublié : envoi impossible :', error.message));
+            } else {
+                // Sans l'adresse (vie privée) : utile pour comprendre pourquoi aucun e-mail n'arrive.
+                console.log('Mot de passe oublié : aucun compte pour l’adresse saisie, aucun e-mail envoyé.');
             }
             return { message: 'Si un compte existe avec cette adresse, un lien de réinitialisation vient d’y être envoyé.' };
         }],
