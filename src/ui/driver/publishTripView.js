@@ -1,7 +1,7 @@
 // Parcours Conducteur — publication d'un trajet avec estimation CO₂ en direct.
 import { validateTrip, MAX_SEATS, MAX_DISTANCE_KM } from '../../core/trips.js';
 import { co2AvoidedForTrip, co2AvoidedForBooking } from '../../core/co2.js';
-import { VEHICLE_PROFILES, VEHICLE_TYPES } from '../../core/emissionFactors.js';
+import { VEHICLE_TYPES } from '../../core/emissionFactors.js';
 import { seatsBooked, hasDeparted, BOOKING_STATUS } from '../../core/booking.js';
 import { isValidCoords } from '../../core/geo.js';
 import { el } from '../dom.js';
@@ -16,9 +16,8 @@ import { driverNav } from './driverNav.js';
 import { createCo2EstimatePanel } from './co2EstimatePanel.js';
 
 const DEFAULT_VEHICLE = 'electric';
-const FIELD_NAMES = ['origin', 'destination', 'departureAt', 'distanceKm', 'vehicleType', 'seats'];
-
-const defaultSeatsFor = vehicleType => Math.max(1, VEHICLE_PROFILES[vehicleType].seats - 1);
+const FIELD_NAMES = ['origin', 'destination', 'departureAt', 'distanceKm', 'vehicleType', 'carSeats', 'otherOccupiedSeats', 'seats'];
+const DEFAULT_CAR_SEATS = 4;
 
 function field(id, label, input, ...extra) {
     input.id = id;
@@ -52,6 +51,8 @@ function readDraft(form, places) {
         departureAt: toIsoOrEmpty(data.get('departureAt')),
         distanceKm: parseFloat(data.get('distanceKm')),
         seats: Number(data.get('seats')),
+        carSeats: Number(data.get('carSeats')),
+        otherOccupiedSeats: Number(data.get('otherOccupiedSeats')),
         vehicleType: data.get('vehicleType')
     };
 }
@@ -136,7 +137,12 @@ export async function render(root, { api, ors }) {
     const vehicleSelect = el('select', {}, ...VEHICLE_TYPES.map(type =>
         el('option', { value: type, text: VEHICLE_LABELS[type] })));
     vehicleSelect.value = DEFAULT_VEHICLE;
-    const seatsInput = el('input', { type: 'number', min: '1', max: String(MAX_SEATS), step: '1', value: String(defaultSeatsFor(DEFAULT_VEHICLE)) });
+    const seatInput = value => el('input', { type: 'number', min: '0', max: String(MAX_SEATS), step: '1', inputmode: 'numeric', value: String(value) });
+    const carSeatsInput = seatInput(DEFAULT_CAR_SEATS);
+    carSeatsInput.min = '1';
+    const otherInput = seatInput(0);
+    const seatsInput = seatInput(DEFAULT_CAR_SEATS);
+    seatsInput.min = '1';
 
     const form = el('form', { class: 'trip-form', novalidate: '' },
         field('origin', 'Départ', places.origin.input, ...places.origin.extra),
@@ -144,18 +150,25 @@ export async function render(root, { api, ors }) {
         field('departureAt', 'Date et heure de départ', el('input', { type: 'datetime-local', min: toLocalInputValue(now) })),
         field('distanceKm', 'Distance (km)', distanceInput, routeInfo),
         field('vehicleType', 'Motorisation', vehicleSelect),
-        field('seats', 'Places proposées', seatsInput),
+        field('carSeats', 'Sièges passagers dans la voiture (sans le vôtre)', carSeatsInput),
+        field('otherOccupiedSeats', 'Sièges déjà occupés (famille, marchandise)', otherInput,
+            el('p', { class: 'hint', text: 'Une voiture pleine augmente votre part des points, sans en produire plus.' })),
+        field('seats', 'Places proposées sur EcoVroom', seatsInput),
         el('div', { class: 'button-group' }, el('button', { type: 'submit', text: 'Publier le trajet' }))
     );
     const panel = createCo2EstimatePanel();
     const status = el('p', { class: 'form-status', role: 'status' });
     const tripList = el('section', { class: 'card' });
 
+    // Places proposées = sièges libres, tant que le conducteur ne les a pas modifiées lui-même.
     let seatsEdited = false;
     seatsInput.addEventListener('input', () => { seatsEdited = true; });
-    vehicleSelect.addEventListener('change', () => {
-        if (!seatsEdited) seatsInput.value = String(defaultSeatsFor(vehicleSelect.value));
-    });
+    const followFreeSeats = () => {
+        const free = Number(carSeatsInput.value) - Number(otherInput.value);
+        if (!seatsEdited && Number.isInteger(free) && free >= 1) seatsInput.value = String(free);
+    };
+    carSeatsInput.addEventListener('input', followFreeSeats);
+    otherInput.addEventListener('input', followFreeSeats);
 
     // Affiche les erreurs ; avec onlyFlagged, ne met à jour que les champs déjà signalés
     // (une erreur disparaît dès que le champ est corrigé, sans en afficher de nouvelles en cours de saisie).
@@ -208,7 +221,9 @@ export async function render(root, { api, ors }) {
         places.destination.reset();
         routeInfo.textContent = '';
         vehicleSelect.value = DEFAULT_VEHICLE;
-        seatsInput.value = String(defaultSeatsFor(DEFAULT_VEHICLE));
+        carSeatsInput.value = String(DEFAULT_CAR_SEATS);
+        otherInput.value = '0';
+        seatsInput.value = String(DEFAULT_CAR_SEATS);
         seatsEdited = false;
         refreshEstimate();
         await reloadList();

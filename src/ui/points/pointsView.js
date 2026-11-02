@@ -6,7 +6,7 @@ import { MIN_DISTANCE_KM, POINTS_STATUS } from '../../core/vroomPoints.js';
 import { el } from '../dom.js';
 import { icon } from '../components/icons.js';
 import { pageHero } from '../components/pageHero.js';
-import { formatDate, formatPoints } from '../format.js';
+import { formatCo2, formatDate, formatPoints } from '../format.js';
 import { tripSummary, plural } from '../components/tripSummary.js';
 
 const AWAITING_LABELS = {
@@ -15,7 +15,7 @@ const AWAITING_LABELS = {
     you: 'Confirmez le trajet pour gagner ces points'
 };
 
-function levelSection({ earned, pending, level }) {
+function levelSection({ earned, pending, co2AvoidedKg, level }) {
     const nextText = level.next
         ? `Encore ${formatPoints(level.next.min - earned)} pour devenir ${level.next.name}.`
         : 'Niveau maximum atteint : bravo, Légende !';
@@ -28,6 +28,7 @@ function levelSection({ earned, pending, level }) {
         el('p', { class: 'points-total' },
             el('strong', { text: earned.toLocaleString('fr-CH') }),
             el('span', { text: earned >= 2 ? ' VroomPoints' : ' VroomPoint' })),
+        el('p', { class: 'points-co2' }, 'CO₂ évité ensemble : ', el('strong', { text: formatCo2((co2AvoidedKg ?? 0) * 1000) })),
         ...(pending > 0 ? [el('p', { class: 'points-pending', text: `+ ${formatPoints(pending)} en attente de confirmation` })] : []),
         el('div', { class: 'progress-block' },
             el('label', { for: 'level-progress', text: nextText }),
@@ -54,7 +55,7 @@ function historyItem(entry) {
         el('div', { class: 'points-item-body' },
             el('span', { class: 'points-role', text: entry.role === 'driver' ? 'Conducteur' : 'Passager' }),
             el('strong', { text: `${entry.trip.origin} → ${entry.trip.destination}` }),
-            el('span', { class: 'hint', text: formatDate(entry.trip.departureAt) }),
+            el('span', { class: 'hint', text: `${formatDate(entry.trip.departureAt)} · CO₂ évité : ${formatCo2(entry.co2AvoidedKg * 1000)}` }),
             el('span', { class: 'points-state', text: earned ? 'Acquis ✓' : AWAITING_LABELS[entry.awaiting] })),
         el('span', { class: 'points-amount', text: `${earned ? '+' : ''}${entry.points}` }));
     if (entry.awaiting === 'you' && entry.bookingId) {
@@ -78,10 +79,10 @@ function rulesSection() {
     return el('details', { class: 'card rules' },
         el('summary', { text: 'Règles du jeu' }),
         el('ul', { class: 'plain-list' },
-            el('li', { text: '1 VroomPoint = 1 kg de CO₂ évité ensemble, selon le calcul EcoVroom.' }),
-            el('li', { text: `Trajets d’au moins ${MIN_DISTANCE_KM} km.` }),
-            el('li', { text: 'Voiture pleine : 100 % des points du trajet. À moitié pleine : déjà 80 %.' }),
-            el('li', { text: 'Partage : la moitié pour le conducteur, l’autre moitié pour les passagers, selon leurs places.' }),
+            el('li', { text: 'Les VroomPoints sont des points, pas des crédits carbone.' }),
+            el('li', { text: 'Il faut un conducteur et au moins un passager, sur un trajet d’au moins ' + MIN_DISTANCE_KM + ' km.' }),
+            el('li', { text: 'Un trajet produit autant de points que de kilos de CO₂ réellement évités par ses passagers : plus la voiture est remplie, plus il en produit.' }),
+            el('li', { text: 'Partage : le conducteur reçoit 50 % des points avec un seul siège occupé, jusqu’à 80 % quand la voiture est pleine (famille et marchandise comprises). Le reste revient aux passagers, selon leurs places.' }),
             el('li', { text: 'Les points sont acquis quand le conducteur et les passagers ont confirmé le trajet (7 jours pour répondre).' }),
             el('li', { text: 'Niveaux : Explorateur, Éclaireur (25), Pionnier (150), Légende (500).' })));
 }
@@ -112,7 +113,7 @@ export async function render(root, context, route = {}) {
         .sort((a, b) => a.departureAt.localeCompare(b.departureAt));
 
     root.append(
-        pageHero('Mes VroomPoints', 'Chaque kilo de CO₂ évité ensemble vous rapporte 1 VroomPoint.'),
+        pageHero('Mes VroomPoints', 'Les VroomPoints récompensent le CO₂ évité ensemble.'),
         status,
         levelSection(points),
         ...(toConfirm.length ? [toConfirmSection(toConfirm, bookings, onComplete)] : []),

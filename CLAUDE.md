@@ -42,10 +42,15 @@ Application de covoiturage basée sur l'algorithme VROOM.
   depuis la fin. 0 par défaut (en-tête ignoré), 1 sur Render.
 - Ne jamais renvoyer l'e-mail d'un autre utilisateur : seulement son prénom (`driverName`, `passengerName`).
 - Une réservation n'est visible que par son passager et par le conducteur du trajet (404 sinon).
-- VroomPoints (`src/core/vroomPoints.js`, `GET /api/me/points`, calculés à la volée) : 1 point = 1 kg de CO₂
-  évité ; rien sous 3 km ; maximum = CO₂ évité voiture pleine ; courbe de Pareto (moitié pleine = 80 %) ;
-  50 % conducteur, 50 % passagers au prorata des places ; entiers, au moins 1 par participant ; niveaux
-  Explorateur, Éclaireur (25), Pionnier (150), Légende (500). Acquis seulement après double confirmation.
+- VroomPoints (`src/core/vroomPoints.js`, `GET /api/me/points`, calculés à la volée) : des « points »,
+  jamais des crédits carbone. Il faut un conducteur et au moins un passager confirmé, et 3 km minimum.
+  Production = CO₂ réellement évité par les passagers confirmés, en kg (`co2AvoidedForBooking`, détour
+  déduit) : proportionnelle au remplissage, JAMAIS de bonus (le total doit rester auditable).
+  Partage : part du conducteur selon les sièges occupés de la voiture (passagers EcoVroom + famille ou
+  marchandise déclarées, `carSeats`/`otherOccupiedSeats`) : 50 % pour 1 siège occupé, 80 % voiture pleine,
+  paliers réguliers ; reste aux passagers au prorata des places. Arrondi à l'entier le plus proche, sans
+  minimum. Niveaux Explorateur, Éclaireur (25), Pionnier (150), Légende (500). Acquis après double confirmation.
+- Consommation et émissions affichées à la publication, même sans passager (pédagogique, `src/core/consumption.js`).
 - Double confirmation (VroomPoints et registre interne de CO₂). Le conducteur confirme le trajet effectué, chaque passager
   confirme ou conteste dans les 7 jours (`src/core/tripProof.js`). Seules les places confirmées par
   leur passager comptent ; soumission possible quand toutes les réponses sont arrivées ou le délai

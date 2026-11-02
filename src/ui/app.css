@@ -1188,6 +1188,10 @@ body.app .points-total strong {
     line-height: 1;
 }
 
+body.app .points-co2 {
+    color: var(--muted);
+}
+
 body.app .points-pending {
     color: var(--blue-ink);
     font-weight: 600;

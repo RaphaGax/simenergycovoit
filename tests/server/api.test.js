@@ -329,6 +329,45 @@ test('trajet effectué et crédits : conducteur seul, après le départ, une foi
     }
 });
 
+test('VroomPoints : CO₂ réel, part du conducteur selon les sièges occupés, double confirmation', async () => {
+    clock = new Date('2026-10-10T12:00:00Z');
+    try {
+        const driver = await newUser('Dana');
+        // Voiture à 4 sièges passagers, 1 occupé par la famille, 3 proposés.
+        const { json: { trip } } = await driver.post('/api/trips', tripDraft({ carSeats: 4, otherOccupiedSeats: 1, seats: 3 }));
+        assert.deepEqual([trip.carSeats, trip.otherOccupiedSeats, trip.seats], [4, 1, 3]);
+        const tooMany = await driver.post('/api/trips', tripDraft({ carSeats: 4, otherOccupiedSeats: 2, seats: 3 }));
+        assert.equal(tooMany.status, 400);
+        assert.ok(tooMany.json.fields.seats);
+
+        const pia = await newUser('Pia');
+        const leo = await newUser('Léo');
+        const { json: { booking: piaBooking } } = await pia.post('/api/bookings', { tripId: trip.id, seats: 1 });
+        const { json: { booking: leoBooking } } = await leo.post('/api/bookings', { tripId: trip.id, seats: 1 });
+
+        assert.deepEqual((await driver.get('/api/me/points')).json.entries, []); // pas encore parti
+        assert.equal((await client().get('/api/me/points')).status, 401);
+
+        clock = new Date('2026-10-11T10:00:00Z');
+        await pia.post(`/api/bookings/${piaBooking.id}/proof`, { answer: 'confirmed' });
+        const piaPending = (await pia.get('/api/me/points')).json;
+        assert.deepEqual(piaPending.entries.map(e => [e.role, e.status, e.awaiting]), [['passenger', 'pending', 'driver']]);
+        assert.equal(piaPending.entries[0].trip.origin, trip.origin);
+        // Léo, sans réponse : points qu'il gagnerait en confirmant (2 passagers + famille = 3 sièges sur 4 → 70 %).
+        assert.deepEqual((await leo.get('/api/me/points')).json.entries.map(e => [e.points, e.awaiting]), [[3, 'you']]);
+
+        await driver.post(`/api/trips/${trip.id}/complete`);
+        await leo.post(`/api/bookings/${leoBooking.id}/proof`, { answer: 'confirmed' });
+        // 2 × 62,5 km × 140 g = 17,5 kg : 70 % → 12 points au conducteur, 30 % → 3 points par passager.
+        const points = (await driver.get('/api/me/points')).json;
+        assert.deepEqual(points.entries.map(e => [e.role, e.points, e.status, e.co2AvoidedKg]), [['driver', 12, 'earned', 17.5]]);
+        assert.deepEqual([points.earned, points.pending, points.co2AvoidedKg, points.level.name], [12, 0, 17.5, 'Explorateur']);
+        assert.deepEqual((await pia.get('/api/me/points')).json.entries.map(e => [e.points, e.status, e.co2AvoidedKg]), [[3, 'earned', 8.75]]);
+    } finally {
+        clock = new Date('2026-10-10T12:00:00Z');
+    }
+});
+
 test('confirmation passager : seul le passager, après le départ, une fois, dans les 7 jours', async () => {
     clock = new Date('2026-10-10T12:00:00Z');
     try {

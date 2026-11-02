@@ -97,6 +97,8 @@ const tripFromRow = row => row && {
     departureAt: row.departure_at,
     distanceKm: row.distance_km,
     seats: row.seats,
+    carSeats: row.car_seats ?? row.seats,
+    otherOccupiedSeats: row.other_occupied_seats ?? 0,
     vehicleType: row.vehicle_type,
     createdAt: row.created_at,
     ...(row.completed_at ? { completedAt: row.completed_at } : {})
@@ -139,7 +141,9 @@ const userFromRow = row => row && { id: row.id, email: row.email, name: row.name
 const ADDED_COLUMNS = [
     ['bookings', 'passenger_proof', 'TEXT'],
     ['bookings', 'passenger_proof_at', 'TEXT'],
-    ['users', 'deleted_at', 'TEXT']
+    ['users', 'deleted_at', 'TEXT'],
+    ['trips', 'car_seats', 'INTEGER'],
+    ['trips', 'other_occupied_seats', 'INTEGER']
 ];
 
 function migrate(db) {
@@ -217,10 +221,12 @@ export function openDatabase(path = ':memory:') {
     const trips = {
         insert(trip) {
             sql(`INSERT INTO trips (id, driver_id, origin, destination, origin_coords, destination_coords,
-                                    departure_at, distance_km, seats, vehicle_type, created_at, completed_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+                                    departure_at, distance_km, seats, car_seats, other_occupied_seats,
+                                    vehicle_type, created_at, completed_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
                 .run(trip.id, trip.driverId, trip.origin, trip.destination, json(trip.originCoords),
                     json(trip.destinationCoords), trip.departureAt, trip.distanceKm, trip.seats,
+                    trip.carSeats ?? trip.seats, trip.otherOccupiedSeats ?? 0,
                     trip.vehicleType, trip.createdAt, trip.completedAt ?? null);
             return trip;
         },

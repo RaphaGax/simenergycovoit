@@ -1,26 +1,25 @@
-// VroomPoints : la récompense des aventuriers EcoVroom, conducteurs et passagers.
-// 1 VroomPoint = 1 kg de CO₂ évité (calcul EcoVroom, voir co2.js) ; ce ne sont pas des crédits carbone
-// certifiés. Le CO₂ évité exact reste enregistré trajet par trajet (carbonCredits.js), pour pouvoir
-// relier plus tard les VroomPoints à de vrais crédits carbone.
+// VroomPoints : les points des aventuriers EcoVroom, conducteurs et passagers.
+// Ce sont des points, pas des crédits carbone. Le CO₂ évité exact reste enregistré trajet par
+// trajet (carbonCredits.js) : c'est lui, et lui seul, qui pourra un jour être certifié.
 //
-// Règles du jeu :
-// - un trajet de moins de MIN_DISTANCE_KM ne rapporte rien ;
-// - les points maximum d'un trajet = CO₂ évité (en kg) si toutes les places proposées sont occupées ;
-// - courbe de Pareto : une voiture à moitié pleine rapporte déjà 80 % du maximum, pleine 100 % ;
-// - partage : moitié pour le conducteur, moitié pour les passagers au prorata de leurs places ;
-// - seules les places confirmées par leur passager comptent (double confirmation, tripProof.js) ;
-// - nombres entiers ; un participant d'un trajet qui rapporte des points en reçoit au moins 1.
+// Règles :
+// - production : il faut un conducteur et au moins un passager confirmé ; les points produits par un
+//   trajet = le CO₂ réellement évité par ses passagers confirmés, en kg (co2AvoidedForBooking, détour
+//   déduit). La production est donc proportionnelle au remplissage : jamais de bonus ;
+// - rien sous MIN_DISTANCE_KM ;
+// - partage : la part du conducteur dépend des sièges occupés dans la voiture (passagers EcoVroom,
+//   famille, marchandise) : 50 % avec un seul siège occupé, 80 % voiture pleine, par paliers réguliers
+//   entre les deux ; le reste va aux passagers au prorata de leurs places ;
+// - chaque part est arrondie à l'entier le plus proche (pas de minimum).
 // Fonctions pures : la date courante est fournie par l'appelant.
 import { BOOKING_STATUS, hasDeparted } from './booking.js';
-import { co2AvoidedForTrip } from './co2.js';
+import { co2AvoidedForTrip, co2AvoidedForBooking } from './co2.js';
 import { PASSENGER_PROOF, summarizeProof } from './tripProof.js';
 
 export const KG_CO2_PER_POINT = 1;
 export const MIN_DISTANCE_KM = 3;
-export const HALF_FULL_SHARE = 0.8;
-export const DRIVER_SHARE = 0.5;
-// 1 − (1 − ½)^k = 0,8  ⇒  k = ln(0,2) / ln(0,5) ≈ 2,32
-export const PARETO_EXPONENT = Math.log(1 - HALF_FULL_SHARE) / Math.log(0.5);
+export const DRIVER_SHARE_MIN = 0.5; // un seul siège occupé
+export const DRIVER_SHARE_MAX = 0.8; // voiture pleine
 
 export const POINTS_STATUS = Object.freeze({
     EARNED: 'earned', // acquis : trajet confirmé par le conducteur et réponses des passagers closes
@@ -34,47 +33,55 @@ export const LEVELS = Object.freeze([
     { name: 'Légende', min: 500 }
 ]);
 
-// Part des points selon le remplissage (places occupées / places proposées), entre 0 et 1.
-export function occupancyShare(filledSeats, offeredSeats) {
-    if (!(offeredSeats > 0) || !(filledSeats > 0)) return 0;
-    const rate = Math.min(1, filledSeats / offeredSeats);
-    return 1 - (1 - rate) ** PARETO_EXPONENT;
+// Sièges passagers de la voiture et sièges occupés hors EcoVroom (famille, marchandise).
+// Trajets publiés avant ces champs : la voiture compte les seules places proposées.
+export function carOccupancy(trip) {
+    return { carSeats: trip.carSeats ?? trip.seats, otherOccupiedSeats: trip.otherOccupiedSeats ?? 0 };
 }
 
-// Points maximum (non arrondis) d'un trajet : CO₂ évité en kg avec toutes les places occupées.
-export function maxTripPoints(trip) {
-    if (!(trip.distanceKm >= MIN_DISTANCE_KM)) return 0;
-    const avoidedG = co2AvoidedForTrip({ distanceKm: trip.distanceKm, vehicleType: trip.vehicleType, passengers: trip.seats });
-    return avoidedG / 1000 / KG_CO2_PER_POINT;
+// Part du conducteur selon le nombre de sièges occupés (passagers EcoVroom compris).
+export function driverShare(occupiedSeats, carSeats) {
+    if (carSeats <= 1) return DRIVER_SHARE_MAX;
+    const occupied = Math.min(Math.max(occupiedSeats, 1), carSeats);
+    return DRIVER_SHARE_MIN + (DRIVER_SHARE_MAX - DRIVER_SHARE_MIN) * (occupied - 1) / (carSeats - 1);
 }
 
-const toPoints = value => (value > 0 ? Math.max(1, Math.round(value)) : 0);
+const eligible = trip => trip.distanceKm >= MIN_DISTANCE_KM;
+const toPoints = kg => Math.round(kg / KG_CO2_PER_POINT);
 
-// Points d'un trajet pour un ensemble de réservations comptées (places occupées).
-// Renvoie { maxPoints, filledSeats, share, driverPoints, passengerPoints: Map(bookingId → points) }.
-export function splitTripPoints(trip, countedBookings) {
-    const max = maxTripPoints(trip);
+// Partage de pointsKg (CO₂ évité, en kg) entre le conducteur et les réservations comptées.
+// Renvoie { co2AvoidedKg, filledSeats, driverShare, driverPoints, passengerPoints: Map(bookingId → points) }.
+export function splitPoints(trip, countedBookings, co2AvoidedKg) {
     const filledSeats = countedBookings.reduce((sum, b) => sum + b.seats, 0);
-    const share = occupancyShare(filledSeats, trip.seats);
-    const pool = max * share;
-    const passengerPool = pool * (1 - DRIVER_SHARE);
+    const pool = eligible(trip) && filledSeats > 0 ? co2AvoidedKg : 0;
+    const { carSeats, otherOccupiedSeats } = carOccupancy(trip);
+    const share = filledSeats > 0 ? driverShare(otherOccupiedSeats + filledSeats, carSeats) : 0;
     return {
-        maxPoints: Math.round(max),
+        co2AvoidedKg: pool,
         filledSeats,
-        share,
-        driverPoints: toPoints(pool * DRIVER_SHARE),
-        passengerPoints: new Map(countedBookings.map(b => [b.id, toPoints(passengerPool * b.seats / filledSeats)]))
+        driverShare: share,
+        driverPoints: toPoints(pool * share),
+        passengerPoints: new Map(countedBookings.map(b => [b.id, toPoints(pool * (1 - share) * b.seats / filledSeats)]))
     };
 }
 
-// Estimation pour chaque remplissage possible (1 à trip.seats places) : { passengers, driverPoints, passengerPoints }
-// (passengerPoints : pour un passager avec une place).
+const bookingsCo2Kg = (trip, bookings) => bookings.reduce((sum, b) => sum + co2AvoidedForBooking(trip, b), 0) / 1000;
+
+// Estimation avant le départ, pour chaque nombre de passagers (1 place chacun, trajet complet) :
+// { passengers, co2AvoidedKg, driverShare, driverPoints, passengerPoints }.
 export function pointsBySeatsFilled(trip) {
     return Array.from({ length: trip.seats }, (_, index) => {
         const passengers = index + 1;
         const bookings = Array.from({ length: passengers }, (__, i) => ({ id: i, seats: 1 }));
-        const split = splitTripPoints(trip, bookings);
-        return { passengers, driverPoints: split.driverPoints, passengerPoints: split.passengerPoints.get(0) };
+        const kg = co2AvoidedForTrip({ distanceKm: trip.distanceKm, vehicleType: trip.vehicleType, passengers }) / 1000;
+        const split = splitPoints(trip, bookings, kg);
+        return {
+            passengers,
+            co2AvoidedKg: split.co2AvoidedKg,
+            driverShare: split.driverShare,
+            driverPoints: split.driverPoints,
+            passengerPoints: split.passengerPoints.get(0)
+        };
     });
 }
 
@@ -82,21 +89,25 @@ const activeBookings = (trip, bookings) =>
     bookings.filter(b => b.tripId === trip.id && b.status === BOOKING_STATUS.CONFIRMED);
 const isProven = b => b.passengerProof === PASSENGER_PROOF.CONFIRMED;
 
+const splitCounted = (trip, counted) => splitPoints(trip, counted, bookingsCo2Kg(trip, counted));
+
 // Points du trajet avec les seules places confirmées par leur passager.
 export function tripPoints(trip, bookings) {
-    return splitTripPoints(trip, activeBookings(trip, bookings).filter(isProven));
+    return splitCounted(trip, activeBookings(trip, bookings).filter(isProven));
 }
 
-// Entrée du conducteur pour un trajet parti avec des passagers, ou null.
+// Entrée du conducteur pour un trajet parti avec des passagers, ou null. Les points en attente
+// ne comptent que les passagers ayant déjà confirmé.
 export function driverEntry(trip, bookings, now) {
     if (!hasDeparted(trip, now) || activeBookings(trip, bookings).length === 0) return null;
     const settled = Boolean(trip.completedAt) && summarizeProof(trip, bookings, now).closed;
-    const points = tripPoints(trip, bookings).driverPoints;
-    if (settled && points === 0) return null;
+    const proven = activeBookings(trip, bookings).filter(isProven);
+    if (settled && proven.length === 0) return null; // tous ont contesté ou n'ont pas répondu
     return {
         tripId: trip.id,
         role: 'driver',
-        points,
+        points: splitCounted(trip, proven).driverPoints,
+        co2AvoidedKg: bookingsCo2Kg(trip, proven),
         status: settled ? POINTS_STATUS.EARNED : POINTS_STATUS.PENDING,
         awaiting: trip.completedAt ? 'passengers' : 'driver'
     };
@@ -113,14 +124,14 @@ export function passengerEntry(booking, trip, bookings, now) {
     if (!answered && proof.closed) return null;
 
     const counted = activeBookings(trip, bookings).filter(b => isProven(b) || b.id === booking.id);
-    const points = splitTripPoints(trip, counted).passengerPoints.get(booking.id) ?? 0;
+    const points = splitCounted(trip, counted).passengerPoints.get(booking.id) ?? 0;
     const settled = answered && Boolean(trip.completedAt) && proof.closed;
-    if (settled && points === 0) return null;
     return {
         tripId: trip.id,
         bookingId: booking.id,
         role: 'passenger',
         points,
+        co2AvoidedKg: bookingsCo2Kg(trip, [booking]),
         status: settled ? POINTS_STATUS.EARNED : POINTS_STATUS.PENDING,
         awaiting: !answered ? 'you' : trip.completedAt ? 'passengers' : 'driver'
     };
@@ -140,9 +151,12 @@ export function levelFor(points) {
     };
 }
 
-// Totaux d'une liste d'entrées : { earned, pending }.
+// Totaux d'une liste d'entrées : { earned, pending, co2AvoidedKg } (CO₂ des seules entrées acquises).
 export function totalPoints(entries) {
-    const totals = { earned: 0, pending: 0 };
-    for (const entry of entries) totals[entry.status] += entry.points;
+    const totals = { earned: 0, pending: 0, co2AvoidedKg: 0 };
+    for (const entry of entries) {
+        totals[entry.status] += entry.points;
+        if (entry.status === POINTS_STATUS.EARNED) totals.co2AvoidedKg += entry.co2AvoidedKg ?? 0;
+    }
     return totals;
 }

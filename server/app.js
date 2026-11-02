@@ -272,7 +272,8 @@ export function createApp({
             const draft = {
                 origin: body.origin, destination: body.destination,
                 originCoords: body.originCoords ?? null, destinationCoords: body.destinationCoords ?? null,
-                departureAt: body.departureAt, distanceKm: body.distanceKm, seats: body.seats, vehicleType: body.vehicleType
+                departureAt: body.departureAt, distanceKm: body.distanceKm, seats: body.seats, vehicleType: body.vehicleType,
+                carSeats: body.carSeats, otherOccupiedSeats: body.otherOccupiedSeats
             };
             const { valid, errors } = validateTrip(draft, { now: now() });
             if (!valid) throw new HttpError(400, 'Trajet invalide.', { fields: errors });

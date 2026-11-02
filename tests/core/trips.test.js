@@ -45,10 +45,23 @@ test('createTrip normalise le trajet et refuse un brouillon invalide', () => {
         departureAt: '2026-10-11T08:00:00.000Z',
         distanceKm: 62.5,
         seats: 3,
+        carSeats: 3,
+        otherOccupiedSeats: 0,
         vehicleType: 'electric',
         createdAt: '2026-10-10T12:00:00.000Z'
     });
     assert.throws(() => createTrip({ ...draft, seats: 0 }, { id: 'x', driverId: 'd1', now }), RangeError);
+});
+
+test('sièges de la voiture : facultatifs, places proposées limitées aux sièges libres', () => {
+    const family = { ...draft, carSeats: 4, otherOccupiedSeats: 2, seats: 2 };
+    assert.equal(validateTrip(family, { now }).valid, true);
+    assert.deepEqual(createTrip(family, { id: 't', driverId: 'd', now }).otherOccupiedSeats, 2);
+    assert.match(validateTrip({ ...family, seats: 3 }, { now }).errors.seats, /Il reste 2 sièges libres/);
+    assert.ok(validateTrip({ ...family, otherOccupiedSeats: 4 }, { now }).errors.otherOccupiedSeats);
+    assert.ok(validateTrip({ ...family, otherOccupiedSeats: -1 }, { now }).errors.otherOccupiedSeats);
+    assert.ok(validateTrip({ ...family, carSeats: 0 }, { now }).errors.carSeats);
+    assert.ok(validateTrip({ ...family, carSeats: 9 }, { now }).errors.carSeats);
 });
 
 test('coordonnées facultatives, mais refusées si invalides', () => {

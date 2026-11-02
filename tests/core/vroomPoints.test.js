@@ -1,83 +1,86 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    occupancyShare, maxTripPoints, splitTripPoints, pointsBySeatsFilled, tripPoints,
+    driverShare, carOccupancy, splitPoints, pointsBySeatsFilled, tripPoints,
     driverEntry, passengerEntry, levelFor, totalPoints, POINTS_STATUS, MIN_DISTANCE_KM
 } from '../../src/core/vroomPoints.js';
 
-// Lausanne → Genève, 62 km, 3 places : 3 × 62 km × 140 g (essence de référence) = 26,04 kg.
-const trip = { id: 't1', distanceKm: 62, vehicleType: 'electric', seats: 3, departureAt: '2026-10-11T08:00:00.000Z' };
+// Lausanne → Genève, 62 km, voiture à 4 sièges passagers : chaque passager évite 62 × 140 g = 8,68 kg.
+const trip = { id: 't1', distanceKm: 62, vehicleType: 'electric', seats: 4, carSeats: 4, otherOccupiedSeats: 0, departureAt: '2026-10-11T08:00:00.000Z' };
 const booking = (id, extra = {}) => ({ id, tripId: 't1', seats: 1, status: 'confirmed', ...extra });
 const after = new Date('2026-10-11T10:00:00Z');
 const afterDeadline = new Date('2026-10-19T00:00:00Z');
 
-test('courbe de Pareto : 0 sans passager, 80 % à moitié plein, 100 % plein', () => {
-    assert.equal(occupancyShare(0, 4), 0);
-    assert.equal(occupancyShare(1, 0), 0);
-    assert.ok(Math.abs(occupancyShare(2, 4) - 0.8) < 1e-9);
-    assert.equal(occupancyShare(4, 4), 1);
-    assert.equal(occupancyShare(5, 4), 1);
-    assert.ok(Math.abs(occupancyShare(1, 4) - 0.487) < 0.001);
-    assert.ok(occupancyShare(3, 4) > occupancyShare(2, 4));
+test('part du conducteur : 50 % avec un siège occupé, 80 % voiture pleine, paliers réguliers', () => {
+    assert.deepEqual([1, 2, 3, 4].map(n => Math.round(driverShare(n, 4) * 100)), [50, 60, 70, 80]);
+    assert.deepEqual([1, 2, 3].map(n => Math.round(driverShare(n, 3) * 100)), [50, 65, 80]);
+    assert.equal(driverShare(1, 1), 0.8); // une seule place, occupée : voiture pleine
+    assert.equal(driverShare(9, 4), 0.8);
 });
 
-test('maximum : CO₂ évité en kg avec toutes les places occupées, rien sous 3 km', () => {
-    assert.ok(Math.abs(maxTripPoints(trip) - 26.04) < 1e-9);
-    assert.equal(maxTripPoints({ ...trip, distanceKm: MIN_DISTANCE_KM - 0.1 }), 0);
-    assert.ok(maxTripPoints({ ...trip, distanceKm: MIN_DISTANCE_KM }) > 0);
+test('sièges de la voiture : trajets anciens = places proposées, sans autre occupant', () => {
+    assert.deepEqual(carOccupancy({ seats: 3 }), { carSeats: 3, otherOccupiedSeats: 0 });
+    assert.deepEqual(carOccupancy(trip), { carSeats: 4, otherOccupiedSeats: 0 });
 });
 
-test('partage 50/50 : conducteur et passagers au prorata des places, nombres entiers', () => {
-    const one = splitTripPoints(trip, [booking('a')]);
-    assert.equal(one.driverPoints, 8); // 26,04 × 0,61 / 2 ≈ 7,9
-    assert.equal(one.passengerPoints.get('a'), 8);
-    const full = splitTripPoints(trip, [booking('a'), booking('b', { seats: 2 })]);
-    assert.equal(full.share, 1);
-    assert.equal(full.driverPoints, 13);
-    assert.equal(full.passengerPoints.get('a'), 4); // 13,02 / 3
-    assert.equal(full.passengerPoints.get('b'), 9); // 13,02 × 2/3
-    assert.equal(full.maxPoints, 26);
-});
-
-test('au moins 1 point par participant d’un trajet qui rapporte, rien sans passager', () => {
-    const short = { ...trip, distanceKm: 3, seats: 4 };
-    const split = splitTripPoints(short, [booking('a')]);
-    assert.equal(split.driverPoints, 1);
-    assert.equal(split.passengerPoints.get('a'), 1);
-    assert.equal(splitTripPoints(trip, []).driverPoints, 0);
-});
-
-test('estimation par remplissage : le conducteur gagne plus quand la voiture se remplit', () => {
+test('production = CO₂ réellement évité, proportionnelle au remplissage, sans bonus', () => {
     const rows = pointsBySeatsFilled(trip);
-    assert.deepEqual(rows.map(r => r.passengers), [1, 2, 3]);
-    assert.ok(rows[0].driverPoints < rows[1].driverPoints && rows[1].driverPoints < rows[2].driverPoints);
-    assert.equal(rows[2].driverPoints, 13);
+    assert.deepEqual(rows.map(r => Math.round(r.co2AvoidedKg * 100) / 100), [8.68, 17.36, 26.04, 34.72]);
+    assert.deepEqual(rows.map(r => [r.driverPoints, r.passengerPoints]), [[4, 4], [10, 3], [18, 3], [28, 2]]);
 });
 
-test('seules les places confirmées par leur passager comptent', () => {
-    const bookings = [booking('a', { passengerProof: 'confirmed' }), booking('b', { passengerProof: 'disputed' }),
+test('famille ou marchandise : la voiture pleine donne 80 % au conducteur, sans produire plus', () => {
+    const family = { ...trip, seats: 1, otherOccupiedSeats: 3 };
+    const split = splitPoints(family, [booking('a')], 8.68);
+    assert.equal(split.driverShare, 0.8);
+    assert.equal(split.co2AvoidedKg, 8.68);
+    assert.deepEqual([split.driverPoints, split.passengerPoints.get('a')], [7, 2]);
+    const alone = splitPoints({ ...trip, seats: 1 }, [booking('a')], 8.68);
+    assert.deepEqual([alone.driverShare, alone.driverPoints, alone.passengerPoints.get('a')], [0.5, 4, 4]);
+});
+
+test('éligibilité : un conducteur et au moins un passager, au moins 3 km, pas de minimum', () => {
+    assert.equal(splitPoints(trip, [], 0).driverPoints, 0);
+    const short = { ...trip, distanceKm: MIN_DISTANCE_KM - 0.1 };
+    assert.equal(splitPoints(short, [booking('a')], 0.4).co2AvoidedKg, 0);
+    const tiny = splitPoints({ ...trip, distanceKm: MIN_DISTANCE_KM }, [booking('a')], 0.42);
+    assert.deepEqual([tiny.driverPoints, tiny.passengerPoints.get('a')], [0, 0]);
+});
+
+test('places réservées à plusieurs : part des passagers au prorata des places', () => {
+    const split = splitPoints(trip, [booking('a'), booking('b', { seats: 2 })], 26.04);
+    assert.equal(Math.round(split.driverShare * 100), 70);
+    assert.deepEqual([split.driverPoints, split.passengerPoints.get('a'), split.passengerPoints.get('b')], [18, 3, 5]);
+});
+
+test('seules les places confirmées par leur passager comptent ; détour déduit', () => {
+    const bookings = [booking('a', { passengerProof: 'confirmed', detourKm: 2 }), booking('b', { passengerProof: 'disputed' }),
         booking('c'), booking('d', { status: 'cancelled', passengerProof: 'confirmed' })];
-    assert.equal(tripPoints(trip, bookings).filledSeats, 1);
+    const points = tripPoints(trip, bookings);
+    assert.equal(points.filledSeats, 1);
+    assert.ok(Math.abs(points.co2AvoidedKg - 8.68) < 1e-9); // voiture électrique : détour sans émission
+    const petrol = tripPoints({ ...trip, vehicleType: 'petrol' }, bookings);
+    assert.ok(Math.abs(petrol.co2AvoidedKg - (8.68 - 0.28)) < 1e-9);
 });
 
 test('conducteur : en attente tant que le trajet n’est pas confirmé et les réponses closes, puis acquis', () => {
     assert.equal(driverEntry(trip, [booking('a')], new Date('2026-10-11T07:00:00Z')), null); // pas parti
     assert.equal(driverEntry(trip, [], after), null); // aucun passager
     const bookings = [booking('a', { passengerProof: 'confirmed' }), booking('b')];
-    assert.deepEqual(driverEntry(trip, bookings, after),
-        { tripId: 't1', role: 'driver', points: 8, status: POINTS_STATUS.PENDING, awaiting: 'driver' });
+    const pending = driverEntry(trip, bookings, after);
+    assert.deepEqual({ ...pending, co2AvoidedKg: Math.round(pending.co2AvoidedKg * 100) / 100 },
+        { tripId: 't1', role: 'driver', points: 4, co2AvoidedKg: 8.68, status: POINTS_STATUS.PENDING, awaiting: 'driver' });
     const done = { ...trip, completedAt: '2026-10-11T11:00:00.000Z' };
     assert.equal(driverEntry(done, bookings, after).awaiting, 'passengers');
     assert.equal(driverEntry(done, bookings, afterDeadline).status, POINTS_STATUS.EARNED);
-    // Tous contestent : rien d'acquis, pas d'entrée.
-    assert.equal(driverEntry(done, [booking('a', { passengerProof: 'disputed' })], after), null);
+    assert.equal(driverEntry(done, [booking('a', { passengerProof: 'disputed' })], after), null); // tous contestent
 });
 
 test('passager : points à gagner en confirmant, acquis après confirmation et clôture, rien s’il conteste', () => {
     const done = { ...trip, completedAt: '2026-10-11T11:00:00.000Z' };
     const waiting = booking('a');
-    assert.deepEqual(passengerEntry(waiting, done, [waiting], after),
-        { tripId: 't1', bookingId: 'a', role: 'passenger', points: 8, status: POINTS_STATUS.PENDING, awaiting: 'you' });
+    const entry = passengerEntry(waiting, done, [waiting], after);
+    assert.deepEqual([entry.points, entry.status, entry.awaiting], [4, POINTS_STATUS.PENDING, 'you']);
     assert.equal(passengerEntry(waiting, done, [waiting], afterDeadline), null); // délai passé sans réponse
     const answered = booking('a', { passengerProof: 'confirmed' });
     assert.equal(passengerEntry(answered, done, [answered], after).status, POINTS_STATUS.EARNED);
@@ -90,13 +93,12 @@ test('niveaux d’aventurier et progression', () => {
     assert.deepEqual(levelFor(0), { name: 'Explorateur', rank: 1, next: { name: 'Éclaireur', min: 25 }, progress: 0 });
     assert.equal(levelFor(25).name, 'Éclaireur');
     assert.equal(levelFor(100).progress, 0.6);
-    const legend = levelFor(9999);
-    assert.equal(legend.name, 'Légende');
-    assert.equal(legend.next, null);
-    assert.equal(legend.progress, 1);
+    assert.deepEqual([levelFor(9999).name, levelFor(9999).next, levelFor(9999).progress], ['Légende', null, 1]);
 });
 
-test('totaux : acquis et en attente', () => {
-    assert.deepEqual(totalPoints([{ points: 8, status: 'earned' }, { points: 4, status: 'pending' }, { points: 2, status: 'earned' }]),
-        { earned: 10, pending: 4 });
+test('totaux : points acquis, en attente, et CO₂ des seules entrées acquises', () => {
+    assert.deepEqual(totalPoints([
+        { points: 8, status: 'earned', co2AvoidedKg: 8.5 }, { points: 4, status: 'pending', co2AvoidedKg: 4 },
+        { points: 2, status: 'earned', co2AvoidedKg: 1.5 }]),
+    { earned: 10, pending: 4, co2AvoidedKg: 10 });
 });

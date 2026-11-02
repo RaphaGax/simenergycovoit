@@ -25,8 +25,20 @@ export function validateTrip(draft, { now = new Date() } = {}) {
     if (!(Number.isFinite(draft.distanceKm) && draft.distanceKm > 0 && draft.distanceKm <= MAX_DISTANCE_KM)) {
         errors.distanceKm = `La distance doit être comprise entre 0 et ${MAX_DISTANCE_KM} km.`;
     }
+    // Sièges passagers de la voiture (sans le conducteur) et sièges déjà occupés (famille, marchandise) :
+    // facultatifs, par défaut la voiture compte les seules places proposées.
+    const carSeats = draft.carSeats ?? draft.seats;
+    const otherOccupiedSeats = draft.otherOccupiedSeats ?? 0;
+    const carSeatsValid = Number.isInteger(carSeats) && carSeats >= 1 && carSeats <= MAX_SEATS;
+    if (!carSeatsValid && draft.carSeats != null) errors.carSeats = `La voiture compte entre 1 et ${MAX_SEATS} sièges passagers.`;
+    const otherValid = Number.isInteger(otherOccupiedSeats) && otherOccupiedSeats >= 0
+        && (!carSeatsValid || otherOccupiedSeats < carSeats || draft.carSeats == null);
+    if (!otherValid) errors.otherOccupiedSeats = 'Laissez au moins un siège libre pour un passager.';
     if (!(Number.isInteger(draft.seats) && draft.seats >= 1 && draft.seats <= MAX_SEATS)) {
         errors.seats = `Proposez entre 1 et ${MAX_SEATS} places.`;
+    } else if (carSeatsValid && otherValid && draft.seats > carSeats - otherOccupiedSeats) {
+        const free = carSeats - otherOccupiedSeats;
+        errors.seats = `Il reste ${free} siège${free > 1 ? 's' : ''} libre${free > 1 ? 's' : ''} dans la voiture.`;
     }
     if (!VEHICLE_PROFILES[draft.vehicleType]) errors.vehicleType = 'Choisissez une motorisation.';
 
@@ -50,6 +62,8 @@ export function createTrip(draft, { id, driverId, now = new Date() }) {
         departureAt: new Date(draft.departureAt).toISOString(),
         distanceKm: draft.distanceKm,
         seats: draft.seats,
+        carSeats: draft.carSeats ?? draft.seats,
+        otherOccupiedSeats: draft.otherOccupiedSeats ?? 0,
         vehicleType: draft.vehicleType,
         createdAt: now.toISOString()
     };
