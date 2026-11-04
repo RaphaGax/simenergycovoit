@@ -35,13 +35,14 @@ test('crédits recalculés au fil des réponses : places confirmées seulement, 
     const { creditEntry } = completeTrip({ trip, bookings, driverId: 'd1' }, { now: after });
     const answered = bookings.map(b => (b.id === 'b1' ? { ...b, passengerProof: 'confirmed' } : b.id === 'b2' ? { ...b, passengerProof: 'disputed' } : b));
     const refreshed = refreshCreditEntry(creditEntry, { trip: { ...trip, completedAt: 'x' }, bookings: answered });
-    assert.equal(refreshed.co2AvoidedG, 2 * 60 * 140); // b1 seul ; b2 contesté
+    assert.ok(Math.abs(refreshed.co2AvoidedG - 2 * 60 * 146.1) < 1e-6); // b1 seul ; b2 contesté
     assert.equal(refreshed.passengerSeats, 2);
     assert.equal(refreshed.estimatedAt, creditEntry.estimatedAt);
 
     const allConfirmed = bookings.map(b => ({ ...b, passengerProof: 'confirmed' }));
-    // b1 : 2 × 60 km × 140 g ; b2 : 25 km × 140 g − 2 km × 120 g (détour diesel) ; b3 annulée, b4 autre trajet
-    assert.equal(refreshCreditEntry(creditEntry, { trip, bookings: allConfirmed }).co2AvoidedG, 2 * 60 * 140 + (25 * 140 - 2 * 120));
+    // b1 : 2 × 60 km × 146,1 g ; b2 : 25 km × 146,1 g − 2 km × 168 g (détour diesel) ; b3 annulée, b4 autre trajet
+    const all = refreshCreditEntry(creditEntry, { trip, bookings: allConfirmed }).co2AvoidedG;
+    assert.ok(Math.abs(all - (2 * 60 * 146.1 + (25 * 146.1 - 2 * 168))) < 1e-6);
 
     // Une entrée déjà soumise n'est jamais recalculée.
     const pending = { ...refreshed, status: 'pending' };

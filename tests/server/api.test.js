@@ -317,7 +317,7 @@ test('trajet effectué et crédits : conducteur seul, après le départ, une foi
         assert.equal(proof.status, 200);
         assert.equal(proof.json.booking.passengerProof, 'confirmed');
         credits = await driver.get('/api/me/credits');
-        assert.equal(credits.json.entries[0].co2AvoidedG, 2 * 62.5 * 140);
+        assert.ok(Math.abs(credits.json.entries[0].co2AvoidedG - 2 * 62.5 * 146.1) < 1e-6);
         assert.equal(credits.json.entries[0].proof.closed, true);
 
         const submitted = await driver.post('/api/me/credits/submit');
@@ -358,11 +358,12 @@ test('VroomPoints : CO₂ réel, part du conducteur selon les sièges occupés, 
 
         await driver.post(`/api/trips/${trip.id}/complete`);
         await leo.post(`/api/bookings/${leoBooking.id}/proof`, { answer: 'confirmed' });
-        // 2 × 62,5 km × 140 g = 17,5 kg : 70 % → 12 points au conducteur, 30 % → 3 points par passager.
+        // 2 × 62,5 km × 146,1 g = 18,26 kg : 70 % → 13 points au conducteur, 30 % → 3 points par passager.
+        const kg = value => Math.round(value * 100) / 100;
         const points = (await driver.get('/api/me/points')).json;
-        assert.deepEqual(points.entries.map(e => [e.role, e.points, e.status, e.co2AvoidedKg]), [['driver', 12, 'earned', 17.5]]);
-        assert.deepEqual([points.earned, points.pending, points.co2AvoidedKg, points.level.name], [12, 0, 17.5, 'Explorateur']);
-        assert.deepEqual((await pia.get('/api/me/points')).json.entries.map(e => [e.points, e.status, e.co2AvoidedKg]), [[3, 'earned', 8.75]]);
+        assert.deepEqual(points.entries.map(e => [e.role, e.points, e.status, kg(e.co2AvoidedKg)]), [['driver', 13, 'earned', 18.26]]);
+        assert.deepEqual([points.earned, points.pending, kg(points.co2AvoidedKg), points.level.name], [13, 0, 18.26, 'Explorateur']);
+        assert.deepEqual((await pia.get('/api/me/points')).json.entries.map(e => [e.points, e.status, kg(e.co2AvoidedKg)]), [[3, 'earned', 9.13]]);
     } finally {
         clock = new Date('2026-10-10T12:00:00Z');
     }
@@ -393,7 +394,7 @@ test('confirmation passager : seul le passager, après le départ, une fois, dan
         // Léo conteste : ses places ne comptent pas ; tout le monde a répondu, l'entrée est soumissible.
         assert.equal((await leo.post(`/api/bookings/${leoBooking.id}/proof`, { answer: 'disputed' })).status, 200);
         const entry = (await driver.get('/api/me/credits')).json.entries.find(e => e.tripId === trip.id);
-        assert.equal(entry.co2AvoidedG, 62.5 * 140);
+        assert.ok(Math.abs(entry.co2AvoidedG - 62.5 * 146.1) < 1e-6);
         assert.deepEqual([entry.proof.confirmedSeats, entry.proof.disputedSeats, entry.proof.closed], [1, 2, true]);
 
         // Le conducteur voit les réponses de ses passagers.

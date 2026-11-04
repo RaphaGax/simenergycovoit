@@ -5,7 +5,8 @@ import {
     driverEntry, passengerEntry, levelFor, totalPoints, POINTS_STATUS, MIN_DISTANCE_KM
 } from '../../src/core/vroomPoints.js';
 
-// Lausanne → Genève, 62 km, voiture à 4 sièges passagers : chaque passager évite 62 × 140 g = 8,68 kg.
+// Lausanne → Genève, 62 km, voiture à 4 sièges passagers : chaque passager évite 62 × 146,1 g = 9,0582 kg
+// (voiture à essence neuve moyenne, OFEN 2025).
 const trip = { id: 't1', distanceKm: 62, vehicleType: 'electric', seats: 4, carSeats: 4, otherOccupiedSeats: 0, departureAt: '2026-10-11T08:00:00.000Z' };
 const booking = (id, extra = {}) => ({ id, tripId: 't1', seats: 1, status: 'confirmed', ...extra });
 const after = new Date('2026-10-11T10:00:00Z');
@@ -25,8 +26,8 @@ test('sièges de la voiture : trajets anciens = places proposées, sans autre oc
 
 test('production = CO₂ réellement évité, proportionnelle au remplissage, sans bonus', () => {
     const rows = pointsBySeatsFilled(trip);
-    assert.deepEqual(rows.map(r => Math.round(r.co2AvoidedKg * 100) / 100), [8.68, 17.36, 26.04, 34.72]);
-    assert.deepEqual(rows.map(r => [r.driverPoints, r.passengerPoints]), [[4, 4], [10, 3], [18, 3], [28, 2]]);
+    assert.deepEqual(rows.map(r => Math.round(r.co2AvoidedKg * 100) / 100), [9.06, 18.12, 27.17, 36.23]);
+    assert.deepEqual(rows.map(r => [r.driverPoints, r.passengerPoints]), [[5, 5], [11, 4], [19, 3], [29, 2]]);
 });
 
 test('famille ou marchandise : la voiture pleine donne 80 % au conducteur, sans produire plus', () => {
@@ -58,9 +59,9 @@ test('seules les places confirmées par leur passager comptent ; détour déduit
         booking('c'), booking('d', { status: 'cancelled', passengerProof: 'confirmed' })];
     const points = tripPoints(trip, bookings);
     assert.equal(points.filledSeats, 1);
-    assert.ok(Math.abs(points.co2AvoidedKg - 8.68) < 1e-9); // voiture électrique : détour sans émission
+    assert.ok(Math.abs(points.co2AvoidedKg - 9.0582) < 1e-9); // voiture électrique : détour sans émission
     const petrol = tripPoints({ ...trip, vehicleType: 'petrol' }, bookings);
-    assert.ok(Math.abs(petrol.co2AvoidedKg - (8.68 - 0.28)) < 1e-9);
+    assert.ok(Math.abs(petrol.co2AvoidedKg - (9.0582 - 2 * 0.1461)) < 1e-9);
 });
 
 test('conducteur : en attente tant que le trajet n’est pas confirmé et les réponses closes, puis acquis', () => {
@@ -69,7 +70,7 @@ test('conducteur : en attente tant que le trajet n’est pas confirmé et les r�
     const bookings = [booking('a', { passengerProof: 'confirmed' }), booking('b')];
     const pending = driverEntry(trip, bookings, after);
     assert.deepEqual({ ...pending, co2AvoidedKg: Math.round(pending.co2AvoidedKg * 100) / 100 },
-        { tripId: 't1', role: 'driver', points: 4, co2AvoidedKg: 8.68, status: POINTS_STATUS.PENDING, awaiting: 'driver' });
+        { tripId: 't1', role: 'driver', points: 5, co2AvoidedKg: 9.06, status: POINTS_STATUS.PENDING, awaiting: 'driver' });
     const done = { ...trip, completedAt: '2026-10-11T11:00:00.000Z' };
     assert.equal(driverEntry(done, bookings, after).awaiting, 'passengers');
     assert.equal(driverEntry(done, bookings, afterDeadline).status, POINTS_STATUS.EARNED);
@@ -80,7 +81,7 @@ test('passager : points à gagner en confirmant, acquis après confirmation et c
     const done = { ...trip, completedAt: '2026-10-11T11:00:00.000Z' };
     const waiting = booking('a');
     const entry = passengerEntry(waiting, done, [waiting], after);
-    assert.deepEqual([entry.points, entry.status, entry.awaiting], [4, POINTS_STATUS.PENDING, 'you']);
+    assert.deepEqual([entry.points, entry.status, entry.awaiting], [5, POINTS_STATUS.PENDING, 'you']);
     assert.equal(passengerEntry(waiting, done, [waiting], afterDeadline), null); // délai passé sans réponse
     const answered = booking('a', { passengerProof: 'confirmed' });
     assert.equal(passengerEntry(answered, done, [answered], after).status, POINTS_STATUS.EARNED);

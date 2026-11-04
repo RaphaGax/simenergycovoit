@@ -17,8 +17,16 @@ Application de covoiturage basée sur l'algorithme VROOM.
 - Tout déplacement de code du parc doit conserver le comportement à l'identique,
   y compris ses bizarreries connues ; une correction se fait dans un commit séparé et explicite.
 - `tests/fleet/` contient des tests de référence : ils doivent toujours passer.
+  Ils calculent avec les facteurs d'origine figés (`LEGACY_VEHICLE_PROFILES`) pour prouver que la logique
+  est inchangée ; le simulateur, lui, utilise les facteurs officiels courants (`VEHICLE_PROFILES`).
 - L'ancien `script.js` a été retiré après preuve d'équivalence et accord explicite ;
   il reste consultable dans l'historique git (commit 39cf9a6).
+
+## Facteurs d'émission et de consommation
+- Source unique et officielle : OFEN, voitures de tourisme neuves (rapport 2025, tableau 1 ; gaz naturel :
+  rapport 2024), dans `src/core/emissionFactors.js` (CO₂, énergie) et `src/core/consumption.js`, partagés par
+  l'application et le simulateur. Référence des VroomPoints : voiture à essence neuve, 146,1 g CO₂/km.
+  Toute nouvelle valeur cite sa source ; une seule source appliquée de façon cohérente (pas de valeur choisie au cas par cas).
 
 ## Architecture
 - JavaScript moderne, ES Modules (`import` / `export`), pas de bundler, aucune dépendance npm.

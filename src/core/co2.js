@@ -2,7 +2,8 @@
 import { VEHICLE_PROFILES } from './emissionFactors.js';
 
 // Hypothèse de référence : sans covoiturage, chaque passager aurait fait le trajet seul
-// dans une voiture à essence. TODO: à valider avec la méthodologie de certification des crédits
+// dans une voiture à essence neuve moyenne (146,1 g CO₂/km, OFEN 2025, voir emissionFactors.js).
+// TODO: à valider avec la méthodologie de certification des crédits
 // (le scénario de référence pourrait aussi être les transports publics).
 export const BASELINE_VEHICLE_TYPE = 'petrol';
 
