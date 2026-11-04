@@ -2,7 +2,7 @@
 // La consommation et les émissions s'affichent dès la distance saisie, même sans passager
 // (usage pédagogique) ; les points demandent au moins un passager.
 import { estimateTripCo2 } from '../../core/co2.js';
-import { estimateConsumption } from '../../core/consumption.js';
+import { estimateConsumption, CONSUMPTION_SOURCE } from '../../core/consumption.js';
 import { pointsBySeatsFilled, MIN_DISTANCE_KM } from '../../core/vroomPoints.js';
 import { el } from '../dom.js';
 import { formatCo2, formatPoints } from '../format.js';
@@ -24,7 +24,8 @@ export function createCo2EstimatePanel() {
 
         root.append(
             el('p', {}, 'Consommation estimée : ',
-                el('strong', { text: estimateConsumption({ distanceKm, vehicleType }).map(formatAmount).join(' + ') })),
+                el('strong', { text: estimateConsumption({ distanceKm, vehicleType }).map(formatAmount).join(' + ') }),
+                el('span', { class: 'hint', text: ` (moyenne ${CONSUMPTION_SOURCE})` })),
             el('p', {}, 'Émissions de votre véhicule : ', el('strong', { text: formatCo2(estimateTripCo2({ distanceKm, vehicleType })) })));
 
         const free = carSeats - otherOccupiedSeats;

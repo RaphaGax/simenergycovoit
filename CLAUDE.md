@@ -50,7 +50,8 @@ Application de covoiturage basée sur l'algorithme VROOM.
   marchandise déclarées, `carSeats`/`otherOccupiedSeats`) : 50 % pour 1 siège occupé, 80 % voiture pleine,
   paliers réguliers ; reste aux passagers au prorata des places. Arrondi à l'entier le plus proche, sans
   minimum. Niveaux Explorateur, Éclaireur (25), Pionnier (150), Légende (500). Acquis après double confirmation.
-- Consommation et émissions affichées à la publication, même sans passager (pédagogique, `src/core/consumption.js`).
+- Consommation et émissions affichées à la publication, même sans passager (pédagogique, `src/core/consumption.js`) :
+  valeurs officielles OFEN (voitures neuves, rapport 2025, tableau 1), source citée dans le code et à l'écran.
 - Double confirmation (VroomPoints et registre interne de CO₂). Le conducteur confirme le trajet effectué, chaque passager
   confirme ou conteste dans les 7 jours (`src/core/tripProof.js`). Seules les places confirmées par
   leur passager comptent ; soumission possible quand toutes les réponses sont arrivées ou le délai
