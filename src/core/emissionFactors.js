@@ -8,7 +8,8 @@
 // - co2 : g CO₂/km à l'échappement (« Tank-to-Wheel » : 0 pour l'électricité et l'hydrogène, comme l'OFEN).
 // - energy : kWh/km, à partir des litres équivalent essence (BÄ) de l'OFEN, avec son facteur
 //   0,11 L BÄ par kWh (ordonnance VEE-PLS, RS 730.022.2) : 1 L BÄ = 1 / 0,11 kWh.
-// - nox, so2 (g/km) et seats : valeurs d'origine du simulateur (ancien script.js), non couvertes par l'OFEN.
+// - nox, so2 (g/km) et seats : valeurs d'origine du simulateur (ancien script.js), non couvertes par l'OFEN,
+//   sauf les places de l'essence : 2 à l'origine (erreur manifeste), 5 comme le diesel et le gaz.
 //   TODO: source pour nox et so2.
 const KWH_PER_LITRE_PETROL_EQUIVALENT = 1 / 0.11;
 const fromPetrolEquivalent = litresPer100Km => litresPer100Km * KWH_PER_LITRE_PETROL_EQUIVALENT / 100;
@@ -21,7 +22,7 @@ export const VEHICLE_PROFILES = Object.freeze({
     // Diesel (inkl. Hybrid) : 6,41 L/100 km = 7,31 L BÄ (1 L diesel = 1,14 L BÄ) ; 168,0 g CO₂/km
     diesel: Object.freeze({ energy: fromPetrolEquivalent(6.41 * 1.14), co2: 168.0, nox: 0.08, so2: 0.02, seats: 5 }),
     // Benzin (inkl. Hybrid) : 6,30 L/100 km ; 146,1 g CO₂/km
-    petrol: Object.freeze({ energy: fromPetrolEquivalent(6.30), co2: 146.1, nox: 0.06, so2: 0.01, seats: 2 }),
+    petrol: Object.freeze({ energy: fromPetrolEquivalent(6.30), co2: 146.1, nox: 0.06, so2: 0.01, seats: 5 }),
     // CNG (rapport 2024) : 5,48 m³/100 km = 5,65 L BÄ (1 m³ = 1,03 L BÄ) ; 114,5 g CO₂/km
     gas: Object.freeze({ energy: fromPetrolEquivalent(5.48 * 1.03), co2: 114.5, nox: 0.03, so2: 0.01, seats: 5 }),
     // Wasserstoff : 0,84 kg/100 km = 3,23 L BÄ ; 0 g CO₂/km
