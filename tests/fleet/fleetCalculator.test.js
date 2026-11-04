@@ -1,4 +1,5 @@
-// Tests de référence du simulateur de parc : figent le comportement actuel.
+// Tests de référence du simulateur de parc : figent le comportement actuel, avec les facteurs
+// d'origine du script (LEGACY_VEHICLE_PROFILES) pour que les totaux attendus restent ceux de référence.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -9,12 +10,13 @@ import {
     computeFleet
 } from '../../src/fleet/core/fleetCalculator.js';
 import { DEFAULT_FLEET_INPUT } from '../../src/fleet/core/fleetDefaults.js';
+import { LEGACY_VEHICLE_PROFILES } from '../../src/core/emissionFactors.js';
 
 const approx = (actual, expected, eps = 1e-9) =>
     assert.ok(Math.abs(actual - expected) < eps, `${actual} ≉ ${expected}`);
 
 test('valeurs par défaut : répartition, places et totaux de référence', () => {
-    const fleet = computeFleet(DEFAULT_FLEET_INPUT);
+    const fleet = computeFleet(DEFAULT_FLEET_INPUT, LEGACY_VEHICLE_PROFILES);
 
     assert.equal(fleet.valid, true);
     assert.deepEqual(fleet.cars, { electric: 21, hybridPlug: 9, diesel: 14, petrol: 56, gas: 0, hydrogen: 0 });
@@ -29,7 +31,7 @@ test('valeurs par défaut : répartition, places et totaux de référence', () =
 });
 
 test('valeurs par défaut : consommation par utilisateur selon la charge', () => {
-    const { userConsumption } = computeFleet(DEFAULT_FLEET_INPUT);
+    const { userConsumption } = computeFleet(DEFAULT_FLEET_INPUT, LEGACY_VEHICLE_PROFILES);
 
     assert.deepEqual(userConsumption.map(uc => uc.charge), [25, 50, 75, 100]);
     assert.deepEqual(userConsumption.map(uc => uc.users), [75.5, 151, 226.5, 302]);
@@ -57,8 +59,8 @@ test('arrondi supérieur au total : non corrigé (comportement actuel conservé)
 
 test('aucun véhicule : capacité et totaux nuls, scénarios à 0', () => {
     const cars = { electric: 0, petrol: 0 };
-    assert.equal(computeCapacity(cars).totalSeats, 0);
-    const totals = computeFleetTotals(cars);
+    assert.equal(computeCapacity(cars, LEGACY_VEHICLE_PROFILES).totalSeats, 0);
+    const totals = computeFleetTotals(cars, LEGACY_VEHICLE_PROFILES);
     assert.equal(totals.totalCO2, 0);
     assert.deepEqual(totals.results, []);
 

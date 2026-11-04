@@ -78,13 +78,14 @@ export function loadScenarios(totalSeats, totalEnergy, totalCO2, loadFactors = L
 }
 
 // Enchaîne les calculs comme calculate() ; renvoie { valid: false } si la répartition est invalide.
-export function computeFleet({ totalCars, percentages }) {
+// profiles : facteurs par motorisation (par défaut ceux de l'application, voir emissionFactors.js).
+export function computeFleet({ totalCars, percentages }, profiles = VEHICLE_PROFILES) {
     const distribution = validateDistribution(percentages);
     if (!distribution.valid) return { valid: false, totalPct: distribution.totalPct };
 
     const cars = distributeCars(totalCars, percentages);
-    const capacity = computeCapacity(cars);
-    const totals = computeFleetTotals(cars);
+    const capacity = computeCapacity(cars, profiles);
+    const totals = computeFleetTotals(cars, profiles);
     const userConsumption = loadScenarios(capacity.totalSeats, totals.totalEnergy, totals.totalCO2);
 
     return { valid: true, cars, ...capacity, ...totals, userConsumption };

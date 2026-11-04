@@ -12,3 +12,14 @@ export const VEHICLE_PROFILES = Object.freeze({
 });
 
 export const VEHICLE_TYPES = Object.freeze(Object.keys(VEHICLE_PROFILES));
+
+// Valeurs d'origine de `vehicleData` (ancien script.js, commit 39cf9a6), figées : les tests de référence
+// du simulateur de parc les utilisent pour prouver que sa logique de calcul reste identique.
+export const LEGACY_VEHICLE_PROFILES = Object.freeze({
+    electric: Object.freeze({ energy: 0.17, co2: 0, nox: 0, so2: 0, seats: 4 }),
+    hybridPlug: Object.freeze({ energy: 0.10 + (0.02 * 10), co2: 50, nox: 0.02, so2: 0.01, seats: 4 }),
+    diesel: Object.freeze({ energy: 0.54, co2: 120, nox: 0.08, so2: 0.02, seats: 5 }),
+    petrol: Object.freeze({ energy: 0.60, co2: 140, nox: 0.06, so2: 0.01, seats: 2 }),
+    gas: Object.freeze({ energy: 0.50, co2: 100, nox: 0.03, so2: 0.01, seats: 5 }),
+    hydrogen: Object.freeze({ energy: 0.33, co2: 0, nox: 0, so2: 0, seats: 4 })
+});
