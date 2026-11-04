@@ -73,6 +73,8 @@ export function createApi({ fetch = globalThis.fetch.bind(globalThis), baseUrl =
             // [{ trip, bookings }] : trajets du conducteur connecté
             mine: async () => (await get('/api/me/trips')).trips,
             complete: tripId => post(`/api/trips/${id(tripId)}/complete`),
+            // { trip, cancelledBookings, notified } : annulation par le conducteur avant le départ
+            cancel: tripId => post(`/api/trips/${id(tripId)}/cancel`),
             itinerary: async tripId => (await post(`/api/trips/${id(tripId)}/itinerary`)).plan
         },
         bookings: {

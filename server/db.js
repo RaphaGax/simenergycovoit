@@ -101,7 +101,8 @@ const tripFromRow = row => row && {
     otherOccupiedSeats: row.other_occupied_seats ?? 0,
     vehicleType: row.vehicle_type,
     createdAt: row.created_at,
-    ...(row.completed_at ? { completedAt: row.completed_at } : {})
+    ...(row.completed_at ? { completedAt: row.completed_at } : {}),
+    ...(row.cancelled_at ? { cancelledAt: row.cancelled_at } : {})
 };
 
 const bookingFromRow = row => row && withoutNulls({
@@ -143,7 +144,8 @@ const ADDED_COLUMNS = [
     ['bookings', 'passenger_proof_at', 'TEXT'],
     ['users', 'deleted_at', 'TEXT'],
     ['trips', 'car_seats', 'INTEGER'],
-    ['trips', 'other_occupied_seats', 'INTEGER']
+    ['trips', 'other_occupied_seats', 'INTEGER'],
+    ['trips', 'cancelled_at', 'TEXT']
 ];
 
 function migrate(db) {
@@ -231,9 +233,11 @@ export function openDatabase(path = ':memory:') {
             return trip;
         },
         get: id => tripFromRow(sql('SELECT * FROM trips WHERE id = ?').get(id)),
-        upcoming: now => sql('SELECT * FROM trips WHERE departure_at > ? ORDER BY departure_at').all(now).map(tripFromRow),
+        // Trajets à venir encore proposés (les trajets annulés sont exclus).
+        upcoming: now => sql('SELECT * FROM trips WHERE departure_at > ? AND cancelled_at IS NULL ORDER BY departure_at').all(now).map(tripFromRow),
         byDriver: driverId => sql('SELECT * FROM trips WHERE driver_id = ? ORDER BY departure_at').all(driverId).map(tripFromRow),
         markCompleted: (id, completedAt) => sql('UPDATE trips SET completed_at = ? WHERE id = ?').run(completedAt, id),
+        markCancelled: (id, cancelledAt) => sql('UPDATE trips SET cancelled_at = ? WHERE id = ?').run(cancelledAt, id),
         // Trajet à venir sans passager (ses réservations annulées partent avec lui).
         deleteWithBookings(id) {
             sql('DELETE FROM bookings WHERE trip_id = ?').run(id);

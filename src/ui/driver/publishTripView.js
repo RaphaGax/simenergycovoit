@@ -12,6 +12,7 @@ import { createItineraryPanel } from './itineraryPanel.js';
 import { createWazeButton } from '../components/wazeButton.js';
 import { pageHero } from '../components/pageHero.js';
 import { driverDestination } from '../../core/navigation.js';
+import { canCancelTrip } from '../../core/tripCancellation.js';
 import { driverNav } from './driverNav.js';
 import { createCo2EstimatePanel } from './co2EstimatePanel.js';
 
@@ -58,7 +59,32 @@ function readDraft(form, places) {
 }
 
 // entries : [{ trip, bookings }] renvoyés par le serveur pour le conducteur connecté.
-function renderTripList(container, entries, { api, ors }) {
+// Bouton « Annuler le trajet » : un premier clic demande confirmation, le second annule.
+function cancelButton(trip, passengers, { api, onCancelled }) {
+    const button = el('button', { type: 'button', class: 'button-secondary', text: 'Annuler le trajet' });
+    const error = el('p', { class: 'error-message', role: 'alert' });
+    let armed = false;
+    button.addEventListener('click', async () => {
+        if (!armed) {
+            armed = true;
+            button.textContent = passengers > 0
+                ? `Confirmer l’annulation (${plural(passengers, 'passager')} prévenu${passengers > 1 ? 's' : ''})`
+                : 'Confirmer l’annulation';
+            return;
+        }
+        button.disabled = true;
+        try {
+            onCancelled(trip, await api.trips.cancel(trip.id));
+        } catch (cause) {
+            console.error('Annulation impossible :', cause);
+            error.textContent = cause.message;
+            button.disabled = false;
+        }
+    });
+    return el('div', { class: 'cancel-trip' }, button, error);
+}
+
+function renderTripList(container, entries, { api, ors, onCancelled }) {
     container.replaceChildren(el('h2', { text: 'Mes trajets publiés' }));
     if (entries.length === 0) {
         container.append(el('p', { class: 'placeholder', text: 'Aucun trajet publié pour le moment.' }));
@@ -70,7 +96,9 @@ function renderTripList(container, entries, { api, ors }) {
         const booked = seatsBooked(trip.id, bookings);
         const avoided = tripBookings.reduce((sum, booking) => sum + co2AvoidedForBooking(trip, booking), 0);
         const departed = hasDeparted(trip, new Date());
-        const state = trip.completedAt
+        const state = trip.cancelledAt
+            ? el('span', { class: 'status-badge status-cancelled', text: 'Annulé' })
+            : trip.completedAt
             ? el('span', { class: 'status-badge status-validated', text: 'Effectué ✓' })
             : departed
                 ? el('a', { href: '#/vroompoints', text: 'Parti : à confirmer pour gagner vos VroomPoints →' })
@@ -86,7 +114,7 @@ function renderTripList(container, entries, { api, ors }) {
                 + ` · jusqu’à ${formatCo2(co2AvoidedForTrip({ ...trip, passengers: trip.seats }))} si complet` })));
         // Navigation vers l'arrivée tant que le trajet n'est pas marqué effectué. Waze ne gère qu'une
         // destination : le conducteur est prévenu s'il doit d'abord prendre des passagers ailleurs.
-        if (!trip.completedAt) {
+        if (!trip.completedAt && !trip.cancelledAt) {
             const waze = createWazeButton(driverDestination(trip), { purpose: 'Arrivée' });
             const pickups = [...new Set(tripBookings.map(b => b.pickup?.label).filter(Boolean))];
             if (pickups.length) {
@@ -95,8 +123,12 @@ function renderTripList(container, entries, { api, ors }) {
             item.append(waze);
         }
         // Itinéraire optimisé par VROOM : nécessite ORS, des coordonnées et au moins une réservation.
-        if (ors && !departed && tripBookings.length > 0 && isValidCoords(trip.originCoords) && isValidCoords(trip.destinationCoords)) {
+        if (ors && !departed && !trip.cancelledAt && tripBookings.length > 0 && isValidCoords(trip.originCoords) && isValidCoords(trip.destinationCoords)) {
             item.append(createItineraryPanel({ trip, bookings: tripBookings, api }));
+        }
+        if (canCancelTrip(trip, new Date())) {
+            const passengers = new Set(tripBookings.map(b => b.passengerId)).size;
+            item.append(cancelButton(trip, passengers, { api, onCancelled }));
         }
         return item;
     })));
@@ -189,7 +221,14 @@ export async function render(root, { api, ors }) {
     form.addEventListener('input', onEdit);
     form.addEventListener('change', onEdit);
 
-    const reloadList = async () => renderTripList(tripList, await api.trips.mine(), { api, ors });
+    const onCancelled = async (trip, result) => {
+        status.textContent = result.cancelledBookings === 0
+            ? `Trajet ${trip.origin} → ${trip.destination} annulé.`
+            : `Trajet ${trip.origin} → ${trip.destination} annulé : ${plural(result.cancelledBookings, 'réservation')} annulée${result.cancelledBookings > 1 ? 's' : ''}`
+                + (result.notified > 0 ? ', vos passagers ont été prévenus par e-mail.' : ', vos passagers le verront dans l’application.');
+        await reloadList();
+    };
+    const reloadList = async () => renderTripList(tripList, await api.trips.mine(), { api, ors, onCancelled });
 
     form.addEventListener('submit', async event => {
         event.preventDefault();

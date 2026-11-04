@@ -113,6 +113,10 @@ function myBookingsSection(entries) {
     const upcoming = active.filter(({ trip }) => !hasDeparted(trip, now)).sort(byDeparture);
     // Trajets passés en attente de la réponse du passager (« Le trajet a-t-il eu lieu ? »).
     const toConfirm = active.filter(({ booking, trip }) => canRecordProof(booking, trip, now)).sort(byDeparture);
+    // Trajets à venir annulés par le conducteur : le passager doit le voir (il est aussi prévenu par e-mail).
+    const cancelledByDriver = entries
+        .filter(({ booking, trip }) => trip?.cancelledAt && booking.status === BOOKING_STATUS.CANCELLED && !hasDeparted(trip, now))
+        .sort(byDeparture);
 
     const item = ({ booking, trip }, linkText) => el('li', { class: 'trip-item' },
         tripSummary(trip, el('span', { text: `${plural(booking.seats, 'place')} · réf. ${booking.reference}` })),
@@ -126,8 +130,13 @@ function myBookingsSection(entries) {
             el('p', { class: 'hint', text: 'Indiquez si ces trajets ont bien eu lieu : votre confirmation vous rapporte des VroomPoints, ainsi qu’au conducteur.' }),
             el('ul', { class: 'trip-list' }, ...toConfirm.map(entry => item(entry, 'Répondre'))));
     }
+    if (cancelledByDriver.length) {
+        section.append(
+            el('h3', { text: 'Annulés par le conducteur' }),
+            el('ul', { class: 'trip-list' }, ...cancelledByDriver.map(entry => item(entry, 'Voir'))));
+    }
     if (upcoming.length) {
-        if (toConfirm.length) section.append(el('h3', { text: 'À venir' }));
+        if (toConfirm.length || cancelledByDriver.length) section.append(el('h3', { text: 'À venir' }));
         section.append(el('ul', { class: 'trip-list' }, ...upcoming.map(entry => item(entry, 'Voir la réservation'))));
     } else if (!toConfirm.length) {
         section.append(el('p', { class: 'placeholder', text: 'Aucune réservation à venir.' }));

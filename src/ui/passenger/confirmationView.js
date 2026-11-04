@@ -94,7 +94,9 @@ export async function render(root, context, { params }) {
     const cancelled = booking.status === BOOKING_STATUS.CANCELLED;
     card.append(
         el('p', { class: cancelled ? 'banner banner-cancelled' : 'banner banner-confirmed', role: 'status',
-            text: cancelled ? 'Réservation annulée.' : 'Réservation confirmée ! Le trajet est gratuit pour le passager.' }),
+            text: trip.cancelledAt
+                ? 'Le conducteur a annulé ce trajet : votre réservation est annulée. Vous pouvez chercher un autre trajet.'
+                : cancelled ? 'Réservation annulée.' : 'Réservation confirmée ! Le trajet est gratuit pour le passager.' }),
         el('h2', { text: isPassenger ? 'Votre réservation' : 'Réservation d’un passager' }),
         tripSummary(trip),
         details(booking, trip));

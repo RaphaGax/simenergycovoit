@@ -227,3 +227,50 @@ test('expéditeur : console en développement, Resend avec clé et expéditeur, 
     assert.equal(publicUrl({ PUBLIC_URL: 'javascript:alert(1)' }), null);
     assert.equal(publicUrl({}), null);
 });
+
+test('annulation d’un trajet par le conducteur : réservations annulées, passagers prévenus, plus proposé', async () => {
+    clock = new Date('2026-10-10T12:00:00Z');
+    try {
+        const driver = await newUser('Dana');
+        const { json: { trip } } = await driver.post('/api/trips', {
+            origin: 'Neuchâtel', destination: 'Bienne', departureAt: '2026-10-15T07:30:00.000Z', distanceKm: 33, seats: 3, vehicleType: 'petrol'
+        });
+        const pia = await newUser('Pia');
+        const piaEmail = pia.email;
+        const leo = await newUser('Léo');
+        const leoEmail = leo.email;
+        const { json: { booking } } = await pia.post('/api/bookings', { tripId: trip.id, seats: 1 });
+        await leo.post('/api/bookings', { tripId: trip.id, seats: 2 });
+
+        assert.equal((await pia.post(`/api/trips/${trip.id}/cancel`)).status, 404); // pas son trajet
+        sent.length = 0;
+        const cancelled = await driver.post(`/api/trips/${trip.id}/cancel`);
+        assert.equal(cancelled.status, 200);
+        assert.deepEqual([cancelled.json.cancelledBookings, cancelled.json.notified], [2, 2]);
+        assert.equal(cancelled.json.trip.cancelledAt, '2026-10-10T12:00:00.000Z');
+        await new Promise(resolve => setImmediate(resolve));
+        assert.deepEqual(sent.map(mail => mail.to).sort(), [piaEmail, leoEmail].sort());
+        const mail = sent.find(m => m.to === piaEmail);
+        assert.match(mail.subject, /Neuchâtel → Bienne annulé/);
+        assert.match(mail.text, /Bonjour Pia/);
+        assert.match(mail.text, /Dana a annulé/);
+        assert.match(mail.text, new RegExp(booking.reference));
+        assert.match(mail.text, /https:\/\/ecovroom\.test\/#\/passager\/recherche/);
+        assert.ok(!sent.some(m => m.text.includes('@')), 'aucune adresse e-mail dans le texte');
+
+        assert.equal((await pia.get(`/api/bookings/${booking.id}`)).json.booking.status, 'cancelled');
+        assert.equal((await driver.post(`/api/trips/${trip.id}/cancel`)).status, 409); // déjà annulé
+        assert.equal((await pia.post('/api/bookings', { tripId: trip.id, seats: 1 })).status, 409);
+        const search = await client().get('/api/trips?origin=neuch');
+        assert.deepEqual(search.json.results, []);
+
+        // Après le départ, l'annulation n'est plus possible.
+        const { json: { trip: other } } = await driver.post('/api/trips', {
+            origin: 'Sion', destination: 'Sierre', departureAt: '2026-10-11T07:30:00.000Z', distanceKm: 16, seats: 2, vehicleType: 'diesel'
+        });
+        clock = new Date('2026-10-11T08:00:00Z');
+        assert.equal((await driver.post(`/api/trips/${other.id}/cancel`)).status, 409);
+    } finally {
+        clock = new Date('2026-10-10T12:00:00Z');
+    }
+});

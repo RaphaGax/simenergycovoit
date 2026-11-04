@@ -9,6 +9,7 @@ import {
 } from '../src/core/booking.js';
 import { completeTrip, refreshCreditEntry, isSubmittable } from '../src/core/tripCompletion.js';
 import { recordPassengerProof, summarizeProof } from '../src/core/tripProof.js';
+import { cancelTrip } from '../src/core/tripCancellation.js';
 import { submitForValidation } from '../src/core/carbonCredits.js';
 import { driverEntry, passengerEntry, totalPoints, levelFor } from '../src/core/vroomPoints.js';
 import { isValidCoords } from '../src/core/geo.js';
@@ -112,6 +113,30 @@ export function createApp({
         const trip = db.trips.get(tripId);
         if (!trip || trip.driverId !== user.id) throw new HttpError(404, 'Trajet introuvable.');
         return trip;
+    }
+
+    // E-mail à chaque passager d'un trajet annulé (prénom du conducteur seulement, jamais son e-mail).
+    // Envoi en arrière-plan : un échec est journalisé sans l'adresse. Renvoie le nombre d'e-mails lancés.
+    function notifyTripCancelled(trip, cancelledBookings, driverName) {
+        const when = new Date(trip.departureAt).toLocaleString('fr-CH', {
+            timeZone: 'Europe/Zurich', dateStyle: 'full', timeStyle: 'short'
+        });
+        let sent = 0;
+        for (const booking of cancelledBookings) {
+            const passenger = db.users.get(booking.passengerId);
+            if (!passenger?.email) continue;
+            sent += 1;
+            mailer.send({
+                to: passenger.email,
+                subject: `EcoVroom : trajet ${trip.origin} → ${trip.destination} annulé`,
+                text: `Bonjour ${passenger.name},\n\n`
+                    + `${driverName} a annulé le trajet ${trip.origin} → ${trip.destination} du ${when}.\n`
+                    + `Votre réservation ${booking.reference} est annulée : vous n'avez rien à faire.\n\n`
+                    + (publicUrl ? `Trouvez un autre trajet : ${publicUrl}/#/passager/recherche\n\n` : '')
+                    + 'EcoVroom'
+            }).catch(error => console.error('Annulation de trajet : e-mail au passager impossible :', error.message));
+        }
+        return sent;
     }
 
     function requireOrs(ctx) {
@@ -227,7 +252,7 @@ export function createApp({
                 if (withPassengers.length) {
                     throw new HttpError(409, 'Suppression impossible : des passagers ont réservé vos trajets à venir ('
                         + withPassengers.map(trip => `${trip.origin} → ${trip.destination}`).join(', ')
-                        + '). Réessayez une fois ces trajets passés.');
+                        + '). Annulez d’abord ces trajets (Conducteur, « Mes trajets publiés ») : vos passagers seront prévenus.');
                 }
                 upcoming.forEach(trip => db.trips.deleteWithBookings(trip.id));
                 const toCancel = db.bookings.byPassenger(user.id)
@@ -295,6 +320,26 @@ export function createApp({
                 if (result.creditEntry) db.credits.upsert(result.creditEntry);
                 return result;
             });
+        }],
+        // Annulation par le conducteur avant le départ : réservations annulées, passagers prévenus par e-mail
+        // (si l'envoi est configuré ; sinon ils le voient dans l'application).
+        ['POST', '/api/trips/:id/cancel', async ctx => {
+            await readJson(ctx.req);
+            const user = requireUser(ctx);
+            const result = db.transaction(() => {
+                const trip = ownTrip(ctx, ctx.params.id);
+                let cancelled;
+                try {
+                    cancelled = cancelTrip({ trip, bookings: db.bookings.byTrip(trip.id), driverId: user.id }, { now: now() });
+                } catch (error) {
+                    throw businessError(error, 409);
+                }
+                db.trips.markCancelled(trip.id, cancelled.trip.cancelledAt);
+                cancelled.cancelledBookings.forEach(b => db.bookings.cancel(b.id, b.cancelledAt));
+                return cancelled;
+            });
+            const notified = mailer ? notifyTripCancelled(result.trip, result.cancelledBookings, user.name) : 0;
+            return { trip: result.trip, cancelledBookings: result.cancelledBookings.length, notified };
         }],
         ['POST', '/api/trips/:id/itinerary', async ctx => {
             await readJson(ctx.req);

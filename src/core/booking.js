@@ -25,6 +25,7 @@ export const hasDeparted = (trip, now) => new Date(trip.departureAt) <= now;
 // Raison pour laquelle la réservation est impossible, ou null si elle est possible.
 export function bookingRefusal({ trip, bookings, passengerId, seats }, { now }) {
     if (!trip) return 'Ce trajet n’existe pas ou n’est plus disponible.';
+    if (trip.cancelledAt) return 'Ce trajet a été annulé par le conducteur.';
     if (hasDeparted(trip, now)) return 'Ce trajet est déjà parti.';
     if (trip.driverId === passengerId) return 'Vous ne pouvez pas réserver votre propre trajet.';
     if (!(Number.isInteger(seats) && seats >= 1)) return 'Choisissez au moins une place.';

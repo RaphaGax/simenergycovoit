@@ -1271,3 +1271,13 @@ body.app .stat-link {
     gap: 4px;
     text-decoration: none;
 }
+
+/* Annulation d'un trajet par le conducteur */
+body.app .cancel-trip {
+    margin-top: 10px;
+}
+
+body.app .status-badge.status-cancelled {
+    background-color: #fef2f2;
+    color: #b91c1c;
+}

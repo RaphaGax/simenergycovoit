@@ -7,7 +7,7 @@ import { createCreditEntry, CREDIT_STATUS } from './carbonCredits.js';
 import { PASSENGER_PROOF } from './tripProof.js';
 
 export function canComplete(trip, now) {
-    return hasDeparted(trip, now) && !trip.completedAt;
+    return hasDeparted(trip, now) && !trip.completedAt && !trip.cancelledAt;
 }
 
 const tripPassengers = (trip, bookings) =>
@@ -42,6 +42,7 @@ export function isSubmittable(entry, proofSummary) {
 // ou creditEntry null si aucun passager n'avait réservé (rien à créditer).
 export function completeTrip({ trip, bookings, driverId }, { now }) {
     if (trip.driverId !== driverId) throw new RangeError('Seul le conducteur peut confirmer ce trajet.');
+    if (trip.cancelledAt) throw new RangeError('Ce trajet a été annulé.');
     if (trip.completedAt) throw new RangeError('Ce trajet est déjà confirmé.');
     if (!hasDeparted(trip, now)) throw new RangeError('Ce trajet n’a pas encore eu lieu.');
 

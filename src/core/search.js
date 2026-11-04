@@ -38,7 +38,7 @@ export function searchTrips(trips, bookings, { origin = '', destination = '', da
     const wantedDestination = normalizeText(destination);
 
     return trips
-        .filter(trip => !hasDeparted(trip, now))
+        .filter(trip => !hasDeparted(trip, now) && !trip.cancelledAt)
         .filter(trip => normalizeText(trip.origin).includes(wantedOrigin))
         .filter(trip => normalizeText(trip.destination).includes(wantedDestination))
         .filter(trip => !date || localDay(trip.departureAt) === date)

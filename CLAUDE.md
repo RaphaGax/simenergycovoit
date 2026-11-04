@@ -64,6 +64,10 @@ Application de covoiturage basée sur l'algorithme VROOM.
   confirme ou conteste dans les 7 jours (`src/core/tripProof.js`). Seules les places confirmées par
   leur passager comptent ; soumission possible quand toutes les réponses sont arrivées ou le délai
   passé (`isSubmittable`). Une entrée soumise ou validée n'est jamais recalculée.
+- Annulation d'un trajet par son conducteur, avant le départ seulement (`src/core/tripCancellation.js`,
+  `POST /api/trips/:id/cancel`) : trajet marqué `cancelledAt`, retiré de la recherche, réservations annulées,
+  chaque passager prévenu par e-mail (prénom du conducteur seulement) et dans l'application. Un compte avec
+  des passagers sur un trajet à venir ne peut être supprimé qu'après l'annulation de ces trajets.
 - Base : une colonne ajoutée après coup se déclare dans `ADDED_COLUMNS` (`server/db.js`), migrée
   à l'ouverture des bases existantes.
 - Compte : changement de mot de passe et suppression exigent le mot de passe actuel ; tout nouveau
