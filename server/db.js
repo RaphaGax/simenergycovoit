@@ -136,7 +136,11 @@ const creditFromRow = row => row && withoutNulls({
     validatedAt: row.validated_at
 });
 
-const userFromRow = row => row && { id: row.id, email: row.email, name: row.name, createdAt: row.created_at };
+const userFromRow = row => row && {
+    id: row.id, email: row.email, name: row.name, createdAt: row.created_at,
+    // A confirmé une fois avoir 18 ans et un permis valable (exigé pour publier un trajet).
+    driverConfirmed: Boolean(row.driver_confirmed_at)
+};
 
 // Colonnes ajoutées après la création des premières bases : ajoutées si elles manquent.
 const ADDED_COLUMNS = [
@@ -145,7 +149,9 @@ const ADDED_COLUMNS = [
     ['users', 'deleted_at', 'TEXT'],
     ['trips', 'car_seats', 'INTEGER'],
     ['trips', 'other_occupied_seats', 'INTEGER'],
-    ['trips', 'cancelled_at', 'TEXT']
+    ['trips', 'cancelled_at', 'TEXT'],
+    ['users', 'age_confirmed_at', 'TEXT'],
+    ['users', 'driver_confirmed_at', 'TEXT']
 ];
 
 function migrate(db) {
@@ -187,6 +193,8 @@ export function openDatabase(path = ':memory:') {
             return users.get(id);
         },
         get: id => userFromRow(sql('SELECT * FROM users WHERE id = ?').get(id)),
+        confirmAge: (id, at) => sql('UPDATE users SET age_confirmed_at = ? WHERE id = ?').run(at, id),
+        confirmDriver: (id, at) => sql('UPDATE users SET driver_confirmed_at = ? WHERE id = ?').run(at, id),
         // Avec l'empreinte du mot de passe : réservé à la connexion.
         findCredentials: email => {
             const row = sql('SELECT * FROM users WHERE email = ?').get(email);

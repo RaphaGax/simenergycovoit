@@ -89,12 +89,13 @@ let counter = 0;
 async function newUser(name = 'Alex') {
     const c = client();
     const email = `user${++counter}@example.ch`;
-    const res = await c.post('/api/auth/register', { email, password: 'motdepasse-solide', name });
+    const res = await c.post('/api/auth/register', { email, password: 'motdepasse-solide', name, ageConfirmed: true });
     assert.equal(res.status, 201, JSON.stringify(res.json));
     return Object.assign(c, { user: res.json.user, email });
 }
 
 const tripDraft = (overrides = {}) => ({
+    driverConfirmed: true,
     origin: 'Lausanne, gare', destination: 'Genève, Cornavin',
     originCoords: LAUSANNE, destinationCoords: GENEVE,
     departureAt: '2026-10-11T07:30:00.000Z', distanceKm: 62.5, seats: 3, vehicleType: 'diesel',
@@ -103,7 +104,7 @@ const tripDraft = (overrides = {}) => ({
 
 test('inscription : cookie HttpOnly, mot de passe haché, e-mail unique et règles de saisie', async () => {
     const c = client();
-    const res = await c.post('/api/auth/register', { email: ' Marie@Example.CH ', password: 'motdepasse-solide', name: 'Marie' });
+    const res = await c.post('/api/auth/register', { email: ' Marie@Example.CH ', password: 'motdepasse-solide', name: 'Marie', ageConfirmed: true });
     assert.equal(res.status, 201);
     assert.equal(res.json.user.email, 'marie@example.ch');
     assert.match(res.setCookie, /^ecovroom_session=.+; Path=\/; HttpOnly; SameSite=Lax; Max-Age=2592000$/);
@@ -113,11 +114,11 @@ test('inscription : cookie HttpOnly, mot de passe haché, e-mail unique et règl
     assert.match(stored, /^scrypt\$/);
     assert.ok(!stored.includes('motdepasse-solide'));
 
-    const duplicate = await client().post('/api/auth/register', { email: 'marie@example.ch', password: 'autre-mot-de-passe', name: 'M' });
+    const duplicate = await client().post('/api/auth/register', { email: 'marie@example.ch', password: 'autre-mot-de-passe', name: 'M', ageConfirmed: true });
     assert.equal(duplicate.status, 400);
     assert.ok(duplicate.json.fields.email);
 
-    const weak = await client().post('/api/auth/register', { email: 'x@example.ch', password: 'court', name: '' });
+    const weak = await client().post('/api/auth/register', { email: 'x@example.ch', password: 'court', name: '', ageConfirmed: true });
     assert.deepEqual(Object.keys(weak.json.fields).sort(), ['name', 'password']);
 });
 
@@ -483,4 +484,22 @@ test('sécurité : origine étrangère et contenu non JSON refusés, en-têtes d
     assert.equal(manifest.status, 200);
     assert.match(manifest.headers.get('content-type'), /application\/manifest\+json/);
     assert.equal((await client().get('/sw.js')).headers.get('content-type'), 'text/javascript; charset=utf-8');
+});
+
+test('âges minimum : 16 ans pour s’inscrire, 18 ans et permis confirmés une fois pour publier', async () => {
+    const tooYoung = await client().post('/api/auth/register', { email: 'jeune@example.ch', password: 'motdepasse-solide', name: 'Léa' });
+    assert.equal(tooYoung.status, 400);
+    assert.ok(tooYoung.json.fields.ageConfirmed);
+    assert.equal(db.users.findCredentials('jeune@example.ch'), undefined); // aucun compte créé
+
+    const driver = await newUser('Noé');
+    const { driverConfirmed, ...draft } = tripDraft();
+    const refused = await driver.post('/api/trips', draft);
+    assert.equal(refused.status, 400);
+    assert.ok(refused.json.fields.driverConfirmed);
+    assert.equal((await driver.get('/api/auth/me')).json.user.driverConfirmed, false);
+
+    assert.equal((await driver.post('/api/trips', { ...draft, driverConfirmed })).status, 201);
+    assert.equal((await driver.get('/api/auth/me')).json.user.driverConfirmed, true);
+    assert.equal((await driver.post('/api/trips', draft)).status, 201); // confirmé une fois pour toutes
 });

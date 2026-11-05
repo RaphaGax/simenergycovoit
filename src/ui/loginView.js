@@ -1,7 +1,7 @@
 // Connexion et inscription. Après succès, la page est rechargée sur l'adresse de retour
 // pour repartir avec l'utilisateur connecté dans tout le contexte de l'application.
 import { el } from './dom.js';
-import { formField as field, accountForm as authForm } from './components/accountForm.js';
+import { formField as field, accountForm as authForm, checkboxField } from './components/accountForm.js';
 
 function safeReturn(path) {
     // Uniquement un chemin interne de l'application (« /… »), jamais une adresse externe.
@@ -44,9 +44,10 @@ export function render(root, { api, user, config }, { query }) {
             fields: [
                 field('register-name', 'Prénom ou pseudonyme', { type: 'text', autocomplete: 'given-name', required: '' }),
                 field('register-email', 'E-mail', { type: 'email', autocomplete: 'email', required: '' }),
-                field('register-password', 'Mot de passe (10 caractères minimum)', { type: 'password', autocomplete: 'new-password', minlength: '10', required: '' })
+                field('register-password', 'Mot de passe (10 caractères minimum)', { type: 'password', autocomplete: 'new-password', minlength: '10', required: '' }),
+                checkboxField('register-ageConfirmed', 'J’ai au moins 16 ans.')
             ],
-            onSubmit: async data => { await api.auth.register(data); done(); },
+            onSubmit: async data => { await api.auth.register({ ...data, ageConfirmed: data.ageConfirmed === 'on' }); done(); },
             footer: [el('p', { class: 'hint auth-footer' }, 'En créant un compte, vous acceptez les ',
                 el('a', { href: '#/conditions', text: 'conditions d’utilisation' }), ' et la ',
                 el('a', { href: '#/confidentialite', text: 'politique de confidentialité' }), '.')]

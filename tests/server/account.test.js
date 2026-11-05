@@ -51,7 +51,7 @@ let counter = 0;
 async function newUser(name = 'Alex', password = 'motdepasse-solide') {
     const c = client();
     const email = `compte${++counter}@example.ch`;
-    const res = await c.post('/api/auth/register', { email, password, name });
+    const res = await c.post('/api/auth/register', { email, password, name, ageConfirmed: true });
     assert.equal(res.status, 201);
     return Object.assign(c, { user: res.json.user, email, password });
 }
@@ -135,17 +135,17 @@ test('mot de passe oublié : au plus 3 liens par heure et par adresse', async ()
 test('suppression : mot de passe exigé ; données personnelles effacées, historique partagé anonymisé', async () => {
     const driver = await newUser('Dana');
     const { json: { trip: past } } = await driver.post('/api/trips', {
-        origin: 'Lausanne', destination: 'Genève', departureAt: '2026-10-11T07:30:00.000Z', distanceKm: 60, seats: 3, vehicleType: 'diesel'
+        driverConfirmed: true, origin: 'Lausanne', destination: 'Genève', departureAt: '2026-10-11T07:30:00.000Z', distanceKm: 60, seats: 3, vehicleType: 'diesel'
     });
     const { json: { trip: empty } } = await driver.post('/api/trips', {
-        origin: 'Sion', destination: 'Martigny', departureAt: '2026-10-20T07:30:00.000Z', distanceKm: 30, seats: 3, vehicleType: 'diesel'
+        driverConfirmed: true, origin: 'Sion', destination: 'Martigny', departureAt: '2026-10-20T07:30:00.000Z', distanceKm: 30, seats: 3, vehicleType: 'diesel'
     });
     const pia = await newUser('Pia');
     const route = { pickup: { label: 'Rue de Pia 1, Morges', coords: [6.4983, 46.5113] }, dropoff: { label: 'Nyon', coords: [6.2393, 46.3833] }, passengerDistanceKm: 30, detourKm: 2 };
     const { json: { booking: pastBooking } } = await pia.post('/api/bookings', { tripId: past.id, seats: 1, route });
     const other = await newUser('Olga');
     const { json: { trip: future } } = await other.post('/api/trips', {
-        origin: 'Fribourg', destination: 'Berne', departureAt: '2026-10-25T07:30:00.000Z', distanceKm: 34, seats: 2, vehicleType: 'electric'
+        driverConfirmed: true, origin: 'Fribourg', destination: 'Berne', departureAt: '2026-10-25T07:30:00.000Z', distanceKm: 34, seats: 2, vehicleType: 'electric'
     });
     const { json: { booking: futureBooking } } = await pia.post('/api/bookings', { tripId: future.id, seats: 2 });
 
@@ -159,7 +159,7 @@ test('suppression : mot de passe exigé ; données personnelles effacées, histo
         // Plus de connexion possible, adresse libérée.
         assert.equal((await pia.get('/api/auth/me')).json.user, null);
         assert.equal((await client().post('/api/auth/login', { email: pia.email, password: pia.password })).status, 401);
-        assert.equal((await client().post('/api/auth/register', { email: pia.email, password: 'nouveau-compte-1', name: 'Pia' })).status, 201);
+        assert.equal((await client().post('/api/auth/register', { email: pia.email, password: 'nouveau-compte-1', name: 'Pia', ageConfirmed: true })).status, 201);
 
         // Réservation à venir annulée : la place revient au trajet d'Olga.
         assert.equal((await client().get(`/api/trips/${future.id}`)).json.seatsLeft, 2);
@@ -187,7 +187,7 @@ test('suppression : mot de passe exigé ; données personnelles effacées, histo
 test('suppression refusée tant qu’un trajet à venir a des passagers', async () => {
     const driver = await newUser('Dana');
     const { json: { trip } } = await driver.post('/api/trips', {
-        origin: 'Lausanne', destination: 'Genève', departureAt: '2026-10-20T07:30:00.000Z', distanceKm: 60, seats: 3, vehicleType: 'diesel'
+        driverConfirmed: true, origin: 'Lausanne', destination: 'Genève', departureAt: '2026-10-20T07:30:00.000Z', distanceKm: 60, seats: 3, vehicleType: 'diesel'
     });
     const pia = await newUser('Pia');
     await pia.post('/api/bookings', { tripId: trip.id, seats: 1 });
@@ -233,7 +233,7 @@ test('annulation d’un trajet par le conducteur : réservations annulées, pass
     try {
         const driver = await newUser('Dana');
         const { json: { trip } } = await driver.post('/api/trips', {
-            origin: 'Neuchâtel', destination: 'Bienne', departureAt: '2026-10-15T07:30:00.000Z', distanceKm: 33, seats: 3, vehicleType: 'petrol'
+            driverConfirmed: true, origin: 'Neuchâtel', destination: 'Bienne', departureAt: '2026-10-15T07:30:00.000Z', distanceKm: 33, seats: 3, vehicleType: 'petrol'
         });
         const pia = await newUser('Pia');
         const piaEmail = pia.email;
@@ -266,7 +266,7 @@ test('annulation d’un trajet par le conducteur : réservations annulées, pass
 
         // Après le départ, l'annulation n'est plus possible.
         const { json: { trip: other } } = await driver.post('/api/trips', {
-            origin: 'Sion', destination: 'Sierre', departureAt: '2026-10-11T07:30:00.000Z', distanceKm: 16, seats: 2, vehicleType: 'diesel'
+            driverConfirmed: true, origin: 'Sion', destination: 'Sierre', departureAt: '2026-10-11T07:30:00.000Z', distanceKm: 16, seats: 2, vehicleType: 'diesel'
         });
         clock = new Date('2026-10-11T08:00:00Z');
         assert.equal((await driver.post(`/api/trips/${other.id}/cancel`)).status, 409);

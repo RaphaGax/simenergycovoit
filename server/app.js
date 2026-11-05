@@ -162,8 +162,13 @@ export function createApp({
         ['POST', '/api/auth/register', async ctx => {
             const body = await readJson(ctx.req);
             if (!loginByIp.take(ctx.ip)) throw new HttpError(429, 'Trop de tentatives, réessayez plus tard.');
+            // Âge minimum (conditions d'utilisation) : 16 ans pour avoir un compte.
+            if (body.ageConfirmed !== true) {
+                throw new HttpError(400, 'Inscription impossible.', { fields: { ageConfirmed: 'Il faut avoir au moins 16 ans pour créer un compte.' } });
+            }
             const { user, errors } = await auth.register(body);
             if (errors) throw new HttpError(400, 'Inscription impossible.', { fields: errors });
+            db.users.confirmAge(user.id, now().toISOString());
             const { token } = auth.startSession(user.id);
             ctx.setCookie(sessionCookie(token, SESSION_DAYS * 86400));
             return { status: 201, body: { user } };
@@ -301,7 +306,13 @@ export function createApp({
                 carSeats: body.carSeats, otherOccupiedSeats: body.otherOccupiedSeats
             };
             const { valid, errors } = validateTrip(draft, { now: now() });
-            if (!valid) throw new HttpError(400, 'Trajet invalide.', { fields: errors });
+            // Conducteur : 18 ans et permis valable, confirmés une fois (conditions d'utilisation).
+            const driverError = user.driverConfirmed || body.driverConfirmed === true
+                ? {} : { driverConfirmed: 'Confirmez avoir au moins 18 ans et un permis de conduire valable.' };
+            if (!valid || driverError.driverConfirmed) {
+                throw new HttpError(400, 'Trajet invalide.', { fields: { ...errors, ...driverError } });
+            }
+            if (!user.driverConfirmed) db.users.confirmDriver(user.id, now().toISOString());
             const trip = db.trips.insert(createTrip(draft, { id: randomUUID(), driverId: user.id, now: now() }));
             return { status: 201, body: { trip } };
         }],

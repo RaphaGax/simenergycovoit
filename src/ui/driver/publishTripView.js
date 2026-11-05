@@ -134,7 +134,7 @@ function renderTripList(container, entries, { api, ors, onCancelled }) {
     })));
 }
 
-export async function render(root, { api, ors }) {
+export async function render(root, { api, ors, user }) {
     const now = new Date();
     const distanceInput = el('input', { type: 'number', min: '1', max: String(MAX_DISTANCE_KM), step: '0.1', inputmode: 'decimal' });
     const routeInfo = el('p', { class: 'hint', 'aria-live': 'polite' });
@@ -186,6 +186,13 @@ export async function render(root, { api, ors }) {
         field('otherOccupiedSeats', 'Sièges déjà occupés (famille, marchandise)', otherInput,
             el('p', { class: 'hint', text: 'Une voiture pleine augmente votre part des points, sans en produire plus.' })),
         field('seats', 'Places proposées sur EcoVroom', seatsInput),
+        // Une seule fois : 18 ans et permis valable (conditions d'utilisation), vérifié par le serveur.
+        ...(user?.driverConfirmed ? [] : [el('div', { class: 'input-group checkbox-field' },
+            el('label', { for: 'driverConfirmed' },
+                el('input', { id: 'driverConfirmed', name: 'driverConfirmed', type: 'checkbox' }),
+                el('span', {}, 'J’ai au moins 18 ans et un permis de conduire valable, et j’accepte les ',
+                    el('a', { href: '#/conditions', text: 'conditions d’utilisation' }), '.')),
+            el('p', { class: 'field-error', id: 'driverConfirmed-error', 'aria-live': 'polite' }))]),
         el('div', { class: 'button-group' }, el('button', { type: 'submit', text: 'Publier le trajet' }))
     );
     const panel = createCo2EstimatePanel();
@@ -205,8 +212,9 @@ export async function render(root, { api, ors }) {
     // Affiche les erreurs ; avec onlyFlagged, ne met à jour que les champs déjà signalés
     // (une erreur disparaît dès que le champ est corrigé, sans en afficher de nouvelles en cours de saisie).
     function showErrors(errors, { onlyFlagged = false } = {}) {
-        for (const name of FIELD_NAMES) {
+        for (const name of [...FIELD_NAMES, 'driverConfirmed']) {
             const input = form.elements[name];
+            if (!input) continue;
             if (onlyFlagged && !input.hasAttribute('aria-invalid')) continue;
             form.querySelector(`#${name}-error`).textContent = errors[name] ?? '';
             input.toggleAttribute('aria-invalid', Boolean(errors[name]));
@@ -235,7 +243,13 @@ export async function render(root, { api, ors }) {
         // Lieux tapés sans choisir de suggestion : localisés, pour que les passagers trouvent le trajet.
         await Promise.all([places.origin.resolve(), places.destination.resolve()]);
         const draft = readDraft(form, places);
-        const { valid, errors } = validateTrip(draft, { now: new Date() });
+        const { valid: tripValid, errors } = validateTrip(draft, { now: new Date() });
+        const driverBox = form.elements.driverConfirmed;
+        if (driverBox) {
+            draft.driverConfirmed = driverBox.checked;
+            if (!driverBox.checked) errors.driverConfirmed = 'Confirmez avoir au moins 18 ans et un permis de conduire valable.';
+        }
+        const valid = tripValid && !errors.driverConfirmed;
         showErrors(errors);
         if (!valid) {
             status.textContent = '';
@@ -257,6 +271,7 @@ export async function render(root, { api, ors }) {
             submit.disabled = false;
         }
         status.textContent = `Trajet ${trip.origin} → ${trip.destination} publié.`;
+        form.querySelector('#driverConfirmed')?.closest('.checkbox-field')?.remove(); // confirmé une fois pour toutes
         form.reset();
         places.origin.reset();
         places.destination.reset();

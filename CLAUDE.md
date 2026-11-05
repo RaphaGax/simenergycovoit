@@ -70,6 +70,9 @@ Application de covoiturage basée sur l'algorithme VROOM.
   des passagers sur un trajet à venir ne peut être supprimé qu'après l'annulation de ces trajets.
 - Base : une colonne ajoutée après coup se déclare dans `ADDED_COLUMNS` (`server/db.js`), migrée
   à l'ouverture des bases existantes.
+- Âges (conditions d'utilisation) : 16 ans pour un compte (`ageConfirmed` à l'inscription, vérifié par le serveur),
+  18 ans et permis valable pour publier (`driverConfirmed`, confirmé une fois : `users.driver_confirmed_at`).
+  Enfants de moins de 16 ans : seulement avec un parent qui réserve pour eux, siège enfant obligatoire.
 - Compte : changement de mot de passe et suppression exigent le mot de passe actuel ; tout nouveau
   mot de passe ferme les sessions et invalide les liens de réinitialisation.
 - Mot de passe oublié : jeton aléatoire à usage unique (30 min), seule son empreinte est en base ;

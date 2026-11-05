@@ -1312,3 +1312,20 @@ body.app .legal-section ul + p {
 body.app .legal-section h2 {
     font-size: 1.15em;
 }
+
+/* Cases à cocher (confirmations d'âge) */
+body.app .checkbox-field label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-weight: 500;
+}
+
+body.app .checkbox-field input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+    min-height: 0;
+    flex: none;
+    margin-top: 1px;
+    accent-color: var(--green-ink);
+}

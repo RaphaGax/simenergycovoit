@@ -9,6 +9,15 @@ export function formField(id, label, attributes) {
         el('p', { class: 'field-error', id: `${id}-error`, 'aria-live': 'polite' }));
 }
 
+// Case à cocher obligatoire (ex. confirmation d'âge) : la donnée vaut « on » si elle est cochée.
+export function checkboxField(id, label) {
+    return el('div', { class: 'input-group checkbox-field' },
+        el('label', { for: id },
+            el('input', { id, name: id.slice(id.indexOf('-') + 1), type: 'checkbox', required: '' }),
+            el('span', { text: label })),
+        el('p', { class: 'field-error', id: `${id}-error`, 'aria-live': 'polite' }));
+}
+
 // onSubmit(données, formulaire) ; une erreur levée (ApiError) s'affiche dans le formulaire.
 export function accountForm({ prefix, title, submitLabel, fields, onSubmit, intro = [], footer = [], buttonClass }) {
     const status = el('p', { class: 'error-message', role: 'alert' });

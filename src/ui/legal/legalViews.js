@@ -28,7 +28,7 @@ export const privacyView = {
             pageHero('Confidentialité', 'Comment EcoVroom traite vos données personnelles.'),
             ...draftNotice(),
             section('Qui est responsable ?',
-                `Le responsable du traitement est ${LEGAL.operator}, ${LEGAL.address}.`,
+                `Le responsable du traitement est l’${LEGAL.operator}, ${LEGAL.legalForm} (IDE ${LEGAL.ide}), ${LEGAL.address}.`,
                 `Pour toute question sur vos données : ${LEGAL.privacyEmail}.`,
                 'Cette politique s’applique au site et à l’application EcoVroom. Elle respecte la loi fédérale suisse sur la protection des données (nLPD) et, pour les utilisateurs situés dans l’Union européenne, le règlement général sur la protection des données (RGPD).'),
             section('Les données que nous traitons',
@@ -82,7 +82,7 @@ export const privacyView = {
             section('Sécurité',
                 'Connexion chiffrée (HTTPS), mots de passe chiffrés de façon irréversible (scrypt), jeton de session dont seule l’empreinte est enregistrée, protection contre les requêtes forgées et limitation des tentatives de connexion.'),
             section('Âge minimum',
-                `EcoVroom est destiné aux personnes âgées d’au moins ${LEGAL.minimumAge} ans. Pour proposer un trajet, il faut en outre être titulaire d’un permis de conduire valable.`),
+                `Un compte EcoVroom est réservé aux personnes d’au moins ${LEGAL.minimumPassengerAge} ans. Pour proposer un trajet, il faut avoir au moins ${LEGAL.minimumDriverAge} ans et un permis de conduire valable. Les enfants plus jeunes voyagent uniquement avec leurs parents, qui réservent pour eux : nous ne collectons aucune donnée sur les enfants.`),
             section('Modifications',
                 'Nous pouvons adapter cette politique, notamment lors de nouvelles fonctionnalités. La date de mise à jour figure ci-dessous ; en cas de changement important, nous vous en informerons dans l’application ou par e-mail.'),
             updated());
@@ -95,7 +95,7 @@ export const termsView = {
             pageHero('Conditions d’utilisation', 'Les règles du jeu d’EcoVroom, pour voyager ensemble en confiance.'),
             ...draftNotice(),
             section('Objet',
-                `EcoVroom, exploité par ${LEGAL.operator}, met en relation des conducteurs qui partagent un trajet qu’ils effectuent de toute façon et des passagers qui souhaitent les accompagner. En créant un compte, vous acceptez les présentes conditions et la politique de confidentialité.`),
+                `EcoVroom, exploité par l’${LEGAL.operator}, ${LEGAL.legalForm} (IDE ${LEGAL.ide}), met en relation des conducteurs qui partagent un trajet qu’ils effectuent de toute façon et des passagers qui souhaitent les accompagner. En créant un compte, vous acceptez les présentes conditions et la politique de confidentialité.`),
             section('Un covoiturage gratuit, entre particuliers',
                 [
                     'Les trajets sont gratuits pour les passagers (0 CHF). Le conducteur ne demande aucune contrepartie financière.',
@@ -104,20 +104,24 @@ export const termsView = {
                 ]),
             section('Votre compte',
                 [
-                    `Il faut avoir au moins ${LEGAL.minimumAge} ans.`,
+                    `Il faut avoir au moins ${LEGAL.minimumPassengerAge} ans pour créer un compte et voyager seul comme passager, et au moins ${LEGAL.minimumDriverAge} ans pour proposer des trajets.`,
                     'Les informations fournies doivent être exactes ; un seul compte par personne.',
                     'Vous êtes responsable de la confidentialité de votre mot de passe.',
                     'Vous pouvez supprimer votre compte à tout moment dans « Mon compte ».'
                 ]),
             section('Engagements du conducteur',
                 [
-                    'Être titulaire d’un permis de conduire valable et conduire un véhicule en état de marche, immatriculé et assuré (responsabilité civile).',
+                    `Avoir au moins ${LEGAL.minimumDriverAge} ans et être titulaire d’un permis de conduire valable ; conduire un véhicule en état de marche, immatriculé et assuré (responsabilité civile).`,
+                    'Ne transporter un enfant que s’il est installé dans un dispositif de retenue (siège enfant) adapté, conformément à la loi.',
                     'Respecter le code de la route et ne pas transporter plus de personnes que de places autorisées.',
                     'Publier des informations exactes (horaire, lieux, places, sièges déjà occupés) et prévenir ses passagers en annulant le trajet dans l’application en cas d’empêchement.',
                     'Confirmer dans l’application uniquement les trajets réellement effectués.'
                 ]),
             section('Engagements du passager',
                 [
+                    `Avoir au moins ${LEGAL.minimumPassengerAge} ans pour voyager seul.`,
+                    `Les enfants de moins de ${LEGAL.minimumPassengerAge} ans voyagent uniquement accompagnés de l’un de leurs parents (ou de leur représentant légal), qui réserve une place pour chacun et en est responsable pendant le trajet.`,
+                    'Les bébés et les enfants voyagent uniquement dans un siège enfant adapté à leur âge et à leur taille, conforme à la loi, fourni par le parent et à indiquer au conducteur avant le trajet.',
                     'Être ponctuel au point de rendez-vous et respecter le conducteur et son véhicule.',
                     'Annuler sa réservation dans l’application s’il ne peut plus venir.',
                     'Répondre honnêtement à la question « le trajet a-t-il eu lieu ? ».'
@@ -153,7 +157,8 @@ export const contactView = {
             section('Nous écrire',
                 `Support et questions : ${LEGAL.contactEmail}`,
                 `Protection des données : ${LEGAL.privacyEmail}`,
-                `Adresse : ${LEGAL.operator}, ${LEGAL.address}`),
+                `Adresse : ${LEGAL.operator}, ${LEGAL.address}`,
+                `${LEGAL.operator} est une ${LEGAL.legalForm}, IDE ${LEGAL.ide}.`),
             section('Avant de nous écrire',
                 [
                     'Mot de passe oublié : utilisez le lien « Mot de passe oublié ? » sur la page de connexion.',
