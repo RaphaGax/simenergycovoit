@@ -92,7 +92,8 @@ Application de covoiturage basée sur l'algorithme VROOM.
   Sans clé, l'application fonctionne sans géocodage ni itinéraires.
 - Le navigateur passe par le serveur (`/api/ors/*`, connexion requise, entrées validées, débit limité) ;
   appels ORS uniquement dans `src/services/orsClient.js`, utilisé côté serveur.
-- Recherche passager : détour calculé par matrice ORS (`src/core/matching.js`), avec repli par nom de lieu.
+- Recherche passager : détour calculé par matrice ORS (`src/core/matching.js`, 40 min maximum, affiché),
+  avec repli par nom de lieu. Suggestions ORS en français et sans districts ni régions.
 - Itinéraire conducteur : problème VROOM construit et lu dans `src/core/vroom/`, appelé par le serveur
   (`POST /api/trips/:id/itinerary`) à partir des réservations confirmées en base.
 

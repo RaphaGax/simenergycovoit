@@ -3,7 +3,9 @@
 //   détour = O→P + P→D + D→E − O→E
 import { isValidCoords, haversineKm } from './geo.js';
 
-export const MAX_DETOUR_MIN = 20;
+// Détour routier sans trafic, sorties et entrées d'autoroute comprises : Lausanne → Genève avec un passager
+// de Morges à Nyon (centres-villes) donne déjà ~19 min. 40 min laisse le choix, le détour est affiché.
+export const MAX_DETOUR_MIN = 40;
 export const MAX_CANDIDATES = 25; // limite la taille de la matrice (2 + 2 × 25 lieux)
 // Présélection à vol d'oiseau : le détour routier est au moins égal au détour à vol d'oiseau.
 const MAX_PRESELECT_DETOUR_KM = 30;

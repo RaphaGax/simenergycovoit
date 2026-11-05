@@ -48,7 +48,7 @@ test('rankByDetour : détour = O→P + P→D + D→E − O→E, tri croissant, f
     // direct : 600 + 1200 + 1200 − 3000 = 0 s
     set(durations, 2, 0, 600); set(durations, 1, 3, 1200); set(durations, 2, 3, 3000);
     set(distances, 2, 0, 11); set(distances, 1, 3, 27); set(distances, 2, 3, 62);
-    // loin : 3600 + 1200 + 3600 − 1800 = 6600 s (110 min) > 20 min
+    // loin : 3600 + 1200 + 3600 − 1800 = 6600 s (110 min) > 40 min
     set(durations, 4, 0, 3600); set(durations, 1, 5, 3600); set(durations, 4, 5, 1800);
     // petit : 900 + 1200 + 1500 − 3000 = 600 s (10 min), 13 + 25 + 30 − 62 = 6 km
     set(durations, 6, 0, 900); set(durations, 1, 7, 1500); set(durations, 6, 7, 3000);

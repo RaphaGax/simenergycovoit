@@ -55,7 +55,9 @@ export function createOrsClient({ apiKey, baseUrl = ORS_BASE_URL, fetch = global
     async function autocomplete(text, { signal } = {}) {
         const data = await request('/geocode/autocomplete', {
             // lang=fr : libellés en français (« Genève » et non « Geneva »), comme la recherche par nom.
-            query: { text, 'boundary.country': 'CH', size: '6', lang: 'fr' },
+            // layers : lieux précis seulement (adresses, lieux, rues, quartiers, localités, communes), pas les districts
+            // ni les régions, dont le centre peut être loin de l'endroit voulu (« Morges District »).
+            query: { text, 'boundary.country': 'CH', size: '6', lang: 'fr', layers: 'venue,address,street,neighbourhood,locality,localadmin' },
             signal
         });
         return (data.features ?? [])
