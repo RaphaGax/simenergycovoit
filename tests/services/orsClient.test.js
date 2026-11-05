@@ -39,6 +39,7 @@ test('autocomplete : requête géocodage CH et lieux { label, coords }', async (
     assert.equal(url.origin + url.pathname, 'https://api.openrouteservice.org/geocode/autocomplete');
     assert.equal(url.searchParams.get('text'), 'Genève');
     assert.equal(url.searchParams.get('boundary.country'), 'CH');
+    assert.equal(url.searchParams.get('lang'), 'fr'); // libellés en français
     assert.equal(calls[0].options.headers.Authorization, 'cle');
     assert.equal(url.searchParams.has('api_key'), false); // la clé ne passe pas dans l'URL
 });

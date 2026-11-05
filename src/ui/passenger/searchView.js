@@ -85,12 +85,16 @@ function resultItem(result, criteria) {
             el('a', { class: 'button-link', href: bookingHref(result, criteria), text: 'Réserver' })));
 }
 
-function resultsSection(results, criteria, notice) {
+function resultsSection(results, criteria, notice, { signedIn = false } = {}) {
     const section = el('section', { class: 'card', 'aria-live': 'polite' },
         el('h2', { text: results.length ? `${plural(results.length, 'trajet')} disponible${results.length > 1 ? 's' : ''}` : 'Aucun trajet trouvé' }));
     if (notice) section.append(el('p', { class: 'notice', text: notice }));
     if (results.length === 0) {
         section.append(el('p', { class: 'placeholder', text: 'Essayez une autre date ou élargissez le départ et l’arrivée.' }));
+        if (signedIn) {
+            section.append(el('p', { class: 'hint', text: 'Les trajets que vous avez vous-même publiés n’apparaissent pas dans votre recherche : '
+                + 'pour tester, cherchez avec un autre compte (par exemple dans une fenêtre de navigation privée).' }));
+        }
         return section;
     }
     section.append(el('ul', { class: 'trip-list' }, ...results.map(result => resultItem(result, criteria))));
@@ -208,18 +212,19 @@ export async function render(root, { api, user, ors }, { query }) {
     let resultsTask;
     if (!(ors && criteria.pickup && criteria.dropoff)) {
         resultsSlot.replaceChildren(loading('Recherche des trajets…'));
-        resultsTask = byName().then(results => resultsSlot.replaceChildren(resultsSection(results, criteria)));
+        resultsTask = byName().then(results => resultsSlot.replaceChildren(resultsSection(results, criteria, undefined, { signedIn: Boolean(user) })));
     } else {
         resultsSlot.replaceChildren(loading('Recherche des trajets sur votre itinéraire…'));
         resultsTask = api.trips.search({ date: criteria.date, seats: criteria.seats })
             .then(available => searchAlongRoute(available, criteria, ors))
             .then(results => resultsSlot.replaceChildren(resultsSection(results, criteria,
-                `Trajets passant à moins de ${MAX_DETOUR_MIN} min de détour de votre itinéraire, du plus direct au moins direct.`)))
+                `Trajets passant à moins de ${MAX_DETOUR_MIN} min de détour de votre itinéraire, du plus direct au moins direct.`,
+                { signedIn: Boolean(user) })))
             .catch(async error => {
                 if (error.name === 'ApiError' && error.status === 401) throw error;
                 console.warn('Recherche par itinéraire indisponible :', error);
                 const results = await byName();
-                resultsSlot.replaceChildren(resultsSection(results, criteria, `${error.message} Résultats par nom de lieu.`));
+                resultsSlot.replaceChildren(resultsSection(results, criteria, `${error.message} Résultats par nom de lieu.`, { signedIn: Boolean(user) }));
             });
     }
     await Promise.all([resultsTask, bookingsTask]);

@@ -54,7 +54,8 @@ export function createOrsClient({ apiKey, baseUrl = ORS_BASE_URL, fetch = global
     // Suggestions de lieux en Suisse : [{ label, coords: [lon, lat] }].
     async function autocomplete(text, { signal } = {}) {
         const data = await request('/geocode/autocomplete', {
-            query: { text, 'boundary.country': 'CH', size: '6' },
+            // lang=fr : libellés en français (« Genève » et non « Geneva »), comme la recherche par nom.
+            query: { text, 'boundary.country': 'CH', size: '6', lang: 'fr' },
             signal
         });
         return (data.features ?? [])
