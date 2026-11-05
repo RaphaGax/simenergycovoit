@@ -1,5 +1,7 @@
 // Champ de lieu avec suggestions openrouteservice (<datalist>). Un lieu choisi dans les
-// suggestions porte des coordonnées ; un texte libre reste utilisable, sans coordonnées.
+// suggestions porte des coordonnées. Un texte tapé sans choisir de suggestion est localisé
+// automatiquement en quittant le champ (ou avant l'envoi du formulaire, voir resolve) avec la
+// première suggestion ; s'il n'y en a aucune, il reste utilisable sans coordonnées.
 // Sans client ORS, c'est un simple champ texte.
 import { el } from '../dom.js';
 
@@ -24,6 +26,29 @@ export function createPlaceInput({ id, placeholder, ors, initial = null, onChang
         hint.textContent = place ? 'Lieu localisé ✓' : '';
         if (changed) onChange(place);
     }
+
+    // Texte libre : localisé avec la première suggestion, affichée dans le champ pour que
+    // l'utilisateur voie le lieu retenu. Renvoie le lieu, ou null.
+    async function resolve() {
+        if (!ors || (selected && selected.label === input.value)) return selected && selected.label === input.value ? selected : null;
+        const text = input.value.trim();
+        if (text.length < MIN_CHARS) return null;
+        clearTimeout(timer);
+        controller?.abort();
+        try {
+            const [first] = await ors.autocomplete(text);
+            if (!first || input.value.trim() !== text) return null; // saisie modifiée entre-temps
+            input.value = first.label;
+            select(first);
+            hint.textContent = `Lieu localisé : ${first.label} ✓`;
+            return first;
+        } catch (error) {
+            console.warn('Localisation du lieu impossible :', error);
+            hint.textContent = 'Lieu non localisé : recherche par nom.';
+            return null;
+        }
+    }
+    input.addEventListener('change', () => { resolve(); });
 
     async function fetchSuggestions(text) {
         controller?.abort();
@@ -60,6 +85,7 @@ export function createPlaceInput({ id, placeholder, ors, initial = null, onChang
         extra: ors ? [list, hint] : [],
         // Lieu choisi, uniquement si le champ affiche toujours son libellé.
         getPlace: () => (selected && selected.label === input.value ? selected : null),
+        resolve,
         reset() {
             input.value = '';
             suggestions = [];

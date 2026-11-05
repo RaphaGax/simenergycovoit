@@ -232,6 +232,8 @@ export async function render(root, { api, ors }) {
 
     form.addEventListener('submit', async event => {
         event.preventDefault();
+        // Lieux tapés sans choisir de suggestion : localisés, pour que les passagers trouvent le trajet.
+        await Promise.all([places.origin.resolve(), places.destination.resolve()]);
         const draft = readDraft(form, places);
         const { valid, errors } = validateTrip(draft, { now: new Date() });
         showErrors(errors);

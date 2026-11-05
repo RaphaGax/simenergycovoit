@@ -161,8 +161,10 @@ export async function render(root, { api, user, ors }, { query }) {
     const criteria = criteriaFromQuery(query);
     const { form, places } = searchForm(criteria, ors);
 
-    form.addEventListener('submit', event => {
+    form.addEventListener('submit', async event => {
         event.preventDefault();
+        // Lieux tapés sans choisir de suggestion : localisés pour la recherche par itinéraire.
+        await Promise.all([places.origin.resolve(), places.destination.resolve()]);
         const data = new FormData(form);
         const next = { date: data.get('date'), seats: Number(data.get('seats')) };
         const { valid, errors } = validateSearch(next);
