@@ -1,0 +1,19 @@
+{
+  "name": "EcoVroom — Covoiturage durable",
+  "short_name": "EcoVroom",
+  "description": "Covoiturage gratuit pour les passagers, des VroomPoints pour tous les aventuriers.",
+  "lang": "fr-CH",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "categories": ["travel", "navigation", "lifestyle"],
+  "icons": [
+    { "src": "/src/ui/assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/src/ui/assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/src/ui/assets/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

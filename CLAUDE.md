@@ -81,10 +81,13 @@ Application de covoiturage basée sur l'algorithme VROOM.
 
 ## Points d'entrée
 - `server/server.js` : serveur HTTP (API `/api/*` et fichiers publics : `index.html`, `fleet.html`,
-  `styles.css`, `src/`). Rien d'autre n'est servi (ni `server/`, ni la base, ni les tests).
+  `styles.css`, `manifest.webmanifest`, `sw.js`, `src/`). Rien d'autre n'est servi (ni `server/`, ni la base, ni les tests).
 - `index.html` → `src/main.js` : application utilisateur (routes par hash, `src/ui/router.js`,
   route `{ auth: true }` = connexion requise).
 - `fleet.html` → `src/fleet/main.js` : simulateur de parc, non relié à l'application utilisateur.
+- Application installable (PWA) : `manifest.webmanifest` et `sw.js` à la racine (servis par `server/http.js`),
+  icônes `src/ui/assets/icon-*.png`, carte « Installer EcoVroom » de l'accueil (`src/ui/install.js`).
+  Le service worker ne met JAMAIS `/api/*` en cache (données personnelles) ; fichiers : réseau d'abord.
 - Les sorties de l'ancien `script.js` sont figées dans `tests/fixtures/legacyFleetOutputs.json`.
 
 ## openrouteservice (ORS) et VROOM

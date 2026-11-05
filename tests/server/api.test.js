@@ -478,4 +478,9 @@ test('sécurité : origine étrangère et contenu non JSON refusés, en-têtes d
         assert.equal((await client().get(path)).status, 404, path);
     }
     assert.equal((await client().get('/api/inconnu')).status, 404);
+    // Application installable : manifeste et service worker servis à la racine.
+    const manifest = await client().get('/manifest.webmanifest');
+    assert.equal(manifest.status, 200);
+    assert.match(manifest.headers.get('content-type'), /application\/manifest\+json/);
+    assert.equal((await client().get('/sw.js')).headers.get('content-type'), 'text/javascript; charset=utf-8');
 });

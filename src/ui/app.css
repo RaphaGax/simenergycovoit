@@ -1281,3 +1281,8 @@ body.app .status-badge.status-cancelled {
     background-color: #fef2f2;
     color: #b91c1c;
 }
+
+/* Attribut hidden toujours respecté (carte d'installation, etc.) */
+body.app [hidden] {
+    display: none !important;
+}

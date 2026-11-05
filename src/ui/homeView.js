@@ -2,6 +2,7 @@
 import { el } from './dom.js';
 import { icon } from './components/icons.js';
 import { loginPath } from './router.js';
+import { installCard } from './install.js';
 
 function choice({ href, className, iconName, title, text }) {
     return el('a', { class: `button-link choice-button ${className}`, href },
@@ -28,5 +29,6 @@ export function render(root, { user } = {}) {
                 })),
             el('p', { class: 'home-account' }, user
                 ? el('a', { href: '#/compte', text: 'Mon compte' })
-                : el('a', { href: `#${loginPath('/')}`, text: 'Je me connecte ou je crée mon compte' }))));
+                : el('a', { href: `#${loginPath('/')}`, text: 'Je me connecte ou je crée mon compte' }))),
+        installCard());
 }

@@ -3,6 +3,7 @@
 import { startRouter, loginPath } from './ui/router.js';
 import { createApi } from './services/api.js';
 import { el } from './ui/dom.js';
+import { initInstall } from './ui/install.js';
 import * as homeView from './ui/homeView.js';
 import * as loginView from './ui/loginView.js';
 import * as searchView from './ui/passenger/searchView.js';
@@ -59,6 +60,7 @@ function renderError(error) {
         el('a', { href: '#/', text: '← Accueil' }));
 }
 
+initInstall();
 const api = createApi();
 const app = document.getElementById('app');
 let user = null;
@@ -67,6 +69,8 @@ try {
     [user, config] = await Promise.all([api.auth.me(), api.config()]);
 } catch (error) {
     app.replaceChildren(renderError(error));
+    // Hors connexion (application installée ouverte sans réseau) : rechargement dès le retour du réseau.
+    if (error?.status === 0) window.addEventListener('online', () => window.location.reload(), { once: true });
     throw error;
 }
 

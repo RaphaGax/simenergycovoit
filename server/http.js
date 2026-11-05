@@ -102,13 +102,15 @@ const CONTENT_TYPES = {
     '.json': 'application/json; charset=utf-8',
     '.svg': 'image/svg+xml',
     '.png': 'image/png',
-    '.ico': 'image/x-icon'
+    '.ico': 'image/x-icon',
+    '.webmanifest': 'application/manifest+json; charset=utf-8'
 };
 
 // Sert uniquement les fichiers publics de l'application : jamais server/, la base, .git ou les tests.
 export function createStaticHandler(rootDir) {
     const root = resolve(rootDir);
-    const PUBLIC_FILES = new Set(['/index.html', '/fleet.html', '/styles.css']);
+    // manifest.webmanifest et sw.js (application installable) : sw.js à la racine pour couvrir tout le site.
+    const PUBLIC_FILES = new Set(['/index.html', '/fleet.html', '/styles.css', '/manifest.webmanifest', '/sw.js']);
 
     return async function serveStatic(path, res, headers) {
         let decoded;
