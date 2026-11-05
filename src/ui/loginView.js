@@ -46,6 +46,9 @@ export function render(root, { api, user, config }, { query }) {
                 field('register-email', 'E-mail', { type: 'email', autocomplete: 'email', required: '' }),
                 field('register-password', 'Mot de passe (10 caractères minimum)', { type: 'password', autocomplete: 'new-password', minlength: '10', required: '' })
             ],
-            onSubmit: async data => { await api.auth.register(data); done(); }
+            onSubmit: async data => { await api.auth.register(data); done(); },
+            footer: [el('p', { class: 'hint auth-footer' }, 'En créant un compte, vous acceptez les ',
+                el('a', { href: '#/conditions', text: 'conditions d’utilisation' }), ' et la ',
+                el('a', { href: '#/confidentialite', text: 'politique de confidentialité' }), '.')]
         })));
 }

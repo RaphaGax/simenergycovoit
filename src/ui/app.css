@@ -1286,3 +1286,29 @@ body.app .status-badge.status-cancelled {
 body.app [hidden] {
     display: none !important;
 }
+
+/* Pages légales et pied de page */
+body.app .site-footer {
+    margin-top: 24px;
+    text-align: center;
+    font-size: 0.9em;
+    color: var(--muted);
+}
+
+body.app .site-footer a {
+    color: var(--green-ink);
+}
+
+body.app .legal-updated {
+    text-align: center;
+}
+
+body.app .legal-section p + p,
+body.app .legal-section p + ul,
+body.app .legal-section ul + p {
+    margin-top: 8px;
+}
+
+body.app .legal-section h2 {
+    font-size: 1.15em;
+}

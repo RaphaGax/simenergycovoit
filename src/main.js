@@ -14,6 +14,7 @@ import * as pointsView from './ui/points/pointsView.js';
 import * as accountView from './ui/account/accountView.js';
 import * as forgotPasswordView from './ui/account/forgotPasswordView.js';
 import * as resetPasswordView from './ui/account/resetPasswordView.js';
+import { privacyView, termsView, contactView } from './ui/legal/legalViews.js';
 
 const routes = [
     { path: '/', section: 'accueil', title: 'Accueil', view: homeView },
@@ -21,6 +22,9 @@ const routes = [
     { path: '/mot-de-passe/oublie', title: 'Mot de passe oublié', view: forgotPasswordView },
     { path: '/mot-de-passe/nouveau', title: 'Nouveau mot de passe', view: resetPasswordView },
     { path: '/compte', section: 'compte', title: 'Mon compte', view: accountView, auth: true },
+    { path: '/confidentialite', title: 'Confidentialité', view: privacyView },
+    { path: '/conditions', title: 'Conditions d’utilisation', view: termsView },
+    { path: '/contact', title: 'Contact', view: contactView },
     { path: '/passager/recherche', section: 'passager', title: 'Rechercher un trajet', view: searchView },
     { path: '/passager/reserver/:tripId', section: 'passager', title: 'Réserver', view: bookingView },
     { path: '/passager/reservation/:bookingId', section: 'passager', title: 'Ma réservation', view: confirmationView, auth: true },

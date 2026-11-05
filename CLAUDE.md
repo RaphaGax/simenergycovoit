@@ -88,6 +88,10 @@ Application de covoiturage basée sur l'algorithme VROOM.
 - Application installable (PWA) : `manifest.webmanifest` et `sw.js` à la racine (servis par `server/http.js`),
   icônes `src/ui/assets/icon-*.png`, carte « Installer EcoVroom » de l'accueil (`src/ui/install.js`).
   Le service worker ne met JAMAIS `/api/*` en cache (données personnelles) ; fichiers : réseau d'abord.
+- Pages légales sans connexion : `#/confidentialite`, `#/conditions`, `#/contact` (`src/ui/legal/`), liées dans le
+  pied de page et à l'inscription. Informations de l'exploitant dans `legalInfo.js` : jamais inventées
+  (« [À compléter] » tant qu'elles manquent, la page l'indique). Tout nouveau traitement de données ou
+  prestataire se décrit aussi dans la politique de confidentialité.
 - Les sorties de l'ancien `script.js` sont figées dans `tests/fixtures/legacyFleetOutputs.json`.
 
 ## openrouteservice (ORS) et VROOM
