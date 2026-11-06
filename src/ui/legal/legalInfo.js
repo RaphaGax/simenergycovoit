@@ -15,7 +15,7 @@ export const LEGAL = Object.freeze({
     // Sous-traitants réellement utilisés par l'application (voir server/ et render.yaml).
     processors: Object.freeze([
         { name: 'Render Services, Inc.', role: 'hébergement du site, du serveur et de la base de données',
-            location: 'États-Unis (région choisie dans Render, à vérifier)' },
+            location: 'Allemagne (centre de données de Francfort, Union européenne)' },
         { name: 'Resend (Plus Five Five, Inc.)', role: 'envoi des e-mails (mot de passe oublié, trajet annulé)',
             location: 'États-Unis ou Union européenne selon la région choisie dans Resend (à vérifier)' },
         { name: 'HeiGIT gGmbH (openrouteservice)', role: 'suggestions d’adresses, distances et itinéraires',

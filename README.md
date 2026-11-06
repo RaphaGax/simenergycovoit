@@ -39,9 +39,10 @@ Exemple : `ORS_API_KEY=… npm start`.
 
 ## Site de test sur Render
 
-`render.yaml` décrit un service web gratuit qui déploie la branche `claude/core-fleet-extraction`
+`render.yaml` décrit le service web qui déploie la branche `claude/core-fleet-extraction`
 (Render → « New + » → « Blueprint » → choisir ce dépôt). Il n'a aucun effet sur GitHub Pages.
-Offre gratuite : la base est effacée à chaque redémarrage, à réserver aux tests.
+Région Francfort, offre « starter » avec un disque persistant : la base SQLite (`/var/data/ecovroom.db`)
+est conservée entre les redémarrages et les déploiements. La région ne se change pas après la création du service.
 
 ## En production
 
